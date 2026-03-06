@@ -1,80 +1,100 @@
-# trackademy-backend
+# Trackademy Backend
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+Backend de Trackademy construido con **Quarkus + Java 21 + PostgreSQL**, siguiendo una base de arquitectura hexagonal (puertos y adaptadores) y orientado a onboarding académico, catálogo de cursos/sílabos y evolución a analítica.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## Stack
 
-## Running the application in dev mode
+- Java 21
+- Quarkus 3.x
+- Maven Wrapper
+- PostgreSQL
+- Hibernate ORM + Panache
+- OpenAPI / Swagger UI
 
-You can run your application in dev mode that enables live coding using:
+## Estado Actual
 
-```shell script
-./mvnw quarkus:dev
+### Ya implementado
+
+- Health check: `GET /health`
+- Catálogo de cursos:
+  - `GET /api/v1/catalog/cursos`
+  - `GET /api/v1/catalog/cursos/{codigo}`
+  - `GET /api/v1/catalog/cursos/{codigo}/detalle`
+- Catálogos académicos:
+  - `GET /api/v1/catalog/campuses?universidadId=...`
+  - `GET /api/v1/catalog/carreras?universidadId=...`
+  - `GET /api/v1/catalog/periodos?universidadId=...`
+  - `GET /api/v1/catalog/periodos/{periodoId}/eventos`
+- Onboarding básico/avanzado en un solo request:
+  - `POST /api/v1/onboarding/basic`
+- Datos del usuario (temporal con email por query):
+  - `GET /api/v1/me/periodo-actual?email=...`
+  - `GET /api/v1/me/cursos?email=...`
+
+### Pendiente (siguiente fase)
+
+- Autenticación/autorización real con Microsoft JWT (eliminar `email` por query)
+- Endpoints de notas, tareas y calendario combinado
+- OpenAPI más formal para contrato frontend
+
+## Estructura (Hexagonal Base)
+
+- `adapter/in/rest`: controladores HTTP y DTOs
+- `application/port/in`: casos de uso (input ports)
+- `application/port/out`: contratos hacia persistencia/externos (output ports)
+- `application/service`: implementación de casos de uso
+- `adapter/out/persistence`: adaptadores PostgreSQL
+- `adapter/out/persistence/entity|repository`: entidades JPA y repositorios
+- `domain/model`: modelos de dominio
+
+## Requisitos
+
+- Java 21 instalado
+- PostgreSQL corriendo (local o remoto)
+- Base creada: `trackademy_bd`
+
+## Configuración
+
+Archivo: `src/main/resources/application.properties`
+
+Ejemplo local:
+
+```properties
+quarkus.datasource.db-kind=postgresql
+quarkus.datasource.jdbc.url=jdbc:postgresql://127.0.0.1:5432/trackademy_bd
+quarkus.datasource.username=postgres
+quarkus.datasource.password=123
+
+quarkus.hibernate-orm.database.generation=none
+quarkus.flyway.migrate-at-start=false
+quarkus.swagger-ui.always-include=true
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+## Ejecutar en local
 
-## Packaging and running the application
+Desde la carpeta `trackademy-backend`:
 
-The application can be packaged using:
-
-```shell script
-./mvnw package
+```bash
+.\mvnw.cmd -DskipTests compile
+.\mvnw.cmd quarkus:dev
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+App: `http://localhost:8080`
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
+Swagger UI: `http://localhost:8080/q/swagger-ui`
 
-If you want to build an _über-jar_, execute the following command:
+## Integración con el proyecto de extracción
 
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
-```
+El esquema principal y la ingesta de sílabos viven en `extraer-pdf`.
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
+Flujo recomendado:
 
-## Creating a native executable
+1. Ejecutar `db_setup.py` y `load_json_to_db.py` en `extraer-pdf`.
+2. Levantar este backend apuntando al mismo Postgres.
+3. Consumir endpoints de catálogo y onboarding desde frontend.
 
-You can create a native executable using:
+## Notas
 
-```shell script
-./mvnw package -Dnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
-```
-
-You can then execute your native executable with: `./target/trackademy-backend-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
-## Related Guides
-
-- Hibernate ORM with Panache ([guide](https://quarkus.io/guides/hibernate-orm-panache)): Simplify your persistence code for Hibernate ORM via the active record or the repository pattern
-- REST Jackson ([guide](https://quarkus.io/guides/rest#json-serialisation)): Jackson serialization support for Quarkus REST. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it
-- Flyway ([guide](https://quarkus.io/guides/flyway)): Handle your database schema migrations
-- SmallRye OpenAPI ([guide](https://quarkus.io/guides/openapi-swaggerui)): Document your REST APIs with OpenAPI - comes with Swagger UI
-- JDBC Driver - PostgreSQL ([guide](https://quarkus.io/guides/datasource)): Connect to the PostgreSQL database via JDBC
-
-## Provided Code
-
-### Hibernate ORM
-
-Create your first JPA entity
-
-[Related guide section...](https://quarkus.io/guides/hibernate-orm)
-
-
-[Related Hibernate with Panache section...](https://quarkus.io/guides/hibernate-orm-panache)
-
-
-### REST
-
-Easily start your REST Web Services
-
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
+- `GET /api/v1/catalog/periodos` actualmente devuelve solo periodos con `fecha_inicio` y `fecha_fin` no nulos.
+- `periodo_evento` almacena hitos institucionales (inicio de clases, finales, rezagados, retiros, etc.).
+- El uso de `email` en endpoints `/me` es temporal hasta incorporar JWT.
