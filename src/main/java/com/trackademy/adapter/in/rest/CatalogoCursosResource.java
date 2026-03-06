@@ -1,5 +1,6 @@
 package com.trackademy.adapter.in.rest;
 
+import com.trackademy.adapter.in.rest.dto.CursoDetalleResponse;
 import com.trackademy.adapter.in.rest.dto.CursoResponse;
 import com.trackademy.application.port.in.CatalogoCursosUseCase;
 import jakarta.ws.rs.*;
@@ -30,6 +31,16 @@ public class CatalogoCursosResource {
     public Response obtenerPorCodigo(@PathParam("codigo") String codigo) {
         return catalogoCursosUseCase.obtenerPorCodigo(codigo)
                 .map(CursoResponse::from)
+                .map(Response::ok)
+                .orElse(Response.status(Response.Status.NOT_FOUND))
+                .build();
+    }
+
+    @GET
+    @Path("/{codigo}/detalle")
+    public Response obtenerDetallePorCodigo(@PathParam("codigo") String codigo) {
+        return catalogoCursosUseCase.obtenerDetallePorCodigo(codigo)
+                .map(CursoDetalleResponse::from)
                 .map(Response::ok)
                 .orElse(Response.status(Response.Status.NOT_FOUND))
                 .build();
