@@ -12,4 +12,8 @@ public class UsuarioPeriodoPanacheRepository implements PanacheRepositoryBase<Us
     public Optional<UsuarioPeriodoEntity> buscarPorUsuarioYPeriodo(Long usuarioId, Long periodoId) {
         return find("usuarioId = ?1 and periodoId = ?2", usuarioId, periodoId).firstResultOptional();
     }
+
+    public Optional<UsuarioPeriodoEntity> buscarUltimoPorUsuario(Long usuarioId) {
+        return find("usuarioId = ?1 order by id desc", usuarioId).firstResultOptional();
+    }
 }

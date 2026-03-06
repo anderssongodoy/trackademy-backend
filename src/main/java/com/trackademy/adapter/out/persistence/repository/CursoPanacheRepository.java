@@ -4,6 +4,7 @@ import com.trackademy.adapter.out.persistence.entity.CursoEntity;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,5 +17,12 @@ public class CursoPanacheRepository implements PanacheRepositoryBase<CursoEntity
 
     public Optional<CursoEntity> buscarPorCodigo(String codigo) {
         return find("lower(codigo) = ?1", codigo.toLowerCase()).firstResultOptional();
+    }
+
+    public List<CursoEntity> listarPorIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return list("id in ?1", ids);
     }
 }
