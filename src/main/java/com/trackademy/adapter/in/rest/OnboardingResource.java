@@ -3,12 +3,15 @@ package com.trackademy.adapter.in.rest;
 import com.trackademy.adapter.in.rest.dto.OnboardingRequest;
 import com.trackademy.adapter.in.rest.dto.OnboardingResponse;
 import com.trackademy.application.port.in.OnboardingUseCase;
+import com.trackademy.security.AuthTokenService;
 import com.trackademy.domain.model.onboarding.OnboardingCommand;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 @Path("/api/v1/onboarding")
 @Produces(MediaType.APPLICATION_JSON)
@@ -16,16 +19,25 @@ import jakarta.ws.rs.core.MediaType;
 public class OnboardingResource {
 
     private final OnboardingUseCase onboardingUseCase;
+        private final AuthTokenService authTokenService;
 
-    public OnboardingResource(OnboardingUseCase onboardingUseCase) {
+        public OnboardingResource(OnboardingUseCase onboardingUseCase, AuthTokenService authTokenService) {
         this.onboardingUseCase = onboardingUseCase;
+                this.authTokenService = authTokenService;
     }
 
     @POST
     @Path("/basic")
-    public OnboardingResponse completarBasico(OnboardingRequest request) {
+        public Response completarBasico(@HeaderParam("Authorization") String authorization, OnboardingRequest request) {
+                var principal = authTokenService.fromAuthorizationHeader(authorization);
+                if (principal.isEmpty()) {
+                        return Response.status(Response.Status.UNAUTHORIZED).build();
+                }
+
+                String email = principal.get().email();
+
         OnboardingCommand command = new OnboardingCommand(
-                request.email(),
+                                email,
                 request.nombre(),
                 request.campusId(),
                 request.periodoId(),
@@ -68,6 +80,6 @@ public class OnboardingResource {
                 ).toList()
         );
 
-        return OnboardingResponse.from(onboardingUseCase.completarOnboardingBasico(command));
+        return Response.ok(OnboardingResponse.from(onboardingUseCase.completarOnboardingBasico(command))).build();
     }
 }

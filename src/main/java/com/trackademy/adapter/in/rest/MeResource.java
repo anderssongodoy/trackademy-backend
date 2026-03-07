@@ -3,10 +3,11 @@ package com.trackademy.adapter.in.rest;
 import com.trackademy.adapter.in.rest.dto.MiCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiPeriodoActualResponse;
 import com.trackademy.application.port.in.MeQueryUseCase;
+import com.trackademy.security.AuthTokenService;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
@@ -17,19 +18,22 @@ import java.util.List;
 public class MeResource {
 
     private final MeQueryUseCase meQueryUseCase;
+    private final AuthTokenService authTokenService;
 
-    public MeResource(MeQueryUseCase meQueryUseCase) {
+    public MeResource(MeQueryUseCase meQueryUseCase, AuthTokenService authTokenService) {
         this.meQueryUseCase = meQueryUseCase;
+        this.authTokenService = authTokenService;
     }
 
     @GET
     @Path("/periodo-actual")
-    public Response periodoActual(@QueryParam("email") String email) {
-        if (email == null || email.isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("email es requerido")
-                    .build();
+    public Response periodoActual(@HeaderParam("Authorization") String authorization) {
+        var principal = authTokenService.fromAuthorizationHeader(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
         }
+
+        String email = principal.get().email();
 
         return meQueryUseCase.obtenerPeriodoActual(email)
                 .map(MiPeriodoActualResponse::from)
@@ -40,12 +44,13 @@ public class MeResource {
 
     @GET
     @Path("/cursos")
-    public Response misCursos(@QueryParam("email") String email) {
-        if (email == null || email.isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("email es requerido")
-                    .build();
+    public Response misCursos(@HeaderParam("Authorization") String authorization) {
+        var principal = authTokenService.fromAuthorizationHeader(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
         }
+
+        String email = principal.get().email();
 
         List<MiCursoResponse> cursos = meQueryUseCase.listarMisCursos(email).stream()
                 .map(MiCursoResponse::from)
