@@ -61,9 +61,9 @@ Ejemplo local:
 
 ```properties
 quarkus.datasource.db-kind=postgresql
-quarkus.datasource.jdbc.url=jdbc:postgresql://127.0.0.1:5432/trackademy_bd
-quarkus.datasource.username=postgres
-quarkus.datasource.password=123
+quarkus.datasource.jdbc.url=${QUARKUS_DATASOURCE_JDBC_URL}
+quarkus.datasource.username=${QUARKUS_DATASOURCE_USERNAME}
+quarkus.datasource.password=${QUARKUS_DATASOURCE_PASSWORD}
 
 quarkus.hibernate-orm.database.generation=none
 quarkus.flyway.migrate-at-start=false
@@ -75,8 +75,11 @@ quarkus.swagger-ui.always-include=true
 Desde la carpeta `trackademy-backend`:
 
 ```bash
-.\mvnw.cmd -DskipTests compile
-.\mvnw.cmd quarkus:dev
+export QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://127.0.0.1:5432/trackademy_bd
+export QUARKUS_DATASOURCE_USERNAME=trackademy
+export QUARKUS_DATASOURCE_PASSWORD=<definir-en-la-vps>
+./mvnw -DskipTests compile
+./mvnw quarkus:dev
 ```
 
 App: `http://localhost:8080`
