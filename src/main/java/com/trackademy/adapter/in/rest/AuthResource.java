@@ -2,6 +2,7 @@ package com.trackademy.adapter.in.rest;
 
 import com.trackademy.security.AppPrincipal;
 import com.trackademy.security.AuthTokenService;
+import com.trackademy.security.GoogleIdentityService;
 import com.trackademy.security.MicrosoftIdentityService;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -18,13 +19,16 @@ import jakarta.ws.rs.core.Response;
 public class AuthResource {
 
     private final MicrosoftIdentityService microsoftIdentityService;
+    private final GoogleIdentityService googleIdentityService;
     private final AuthTokenService authTokenService;
 
     public AuthResource(
         MicrosoftIdentityService microsoftIdentityService,
+        GoogleIdentityService googleIdentityService,
         AuthTokenService authTokenService
     ) {
     this.microsoftIdentityService = microsoftIdentityService;
+    this.googleIdentityService = googleIdentityService;
     this.authTokenService = authTokenService;
     }
 
@@ -43,6 +47,22 @@ public class AuthResource {
             .entity("Token de Microsoft invalido")
             .build());
     }
+
+            @POST
+            @Path("/google")
+            public Response google(GoogleLoginRequest request) {
+            if (request == null || request.idToken() == null || request.idToken().isBlank()) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("idToken es requerido")
+                    .build();
+            }
+
+            return googleIdentityService.verifyGoogleIdToken(request.idToken())
+                .map(this::buildLoginResponse)
+                .orElse(Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("Token de Google invalido")
+                    .build());
+            }
 
     @GET
     @Path("/session")
@@ -66,6 +86,11 @@ public class AuthResource {
 
     public record MicrosoftLoginRequest(
         String idToken
+    ) {
+    }
+
+    public record GoogleLoginRequest(
+            String idToken
     ) {
     }
 
