@@ -1,4 +1,4 @@
-package com.trackademy.adapter.out.persistence.entity;
+﻿package com.trackademy.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
 
@@ -26,4 +26,7 @@ public class UsuarioPreferenciaEstudioEntity {
 
     @Column(name = "prioridad", nullable = false)
     public Short prioridad;
+
+    @Column(name = "tipo", nullable = false)
+    public String tipo;
 }

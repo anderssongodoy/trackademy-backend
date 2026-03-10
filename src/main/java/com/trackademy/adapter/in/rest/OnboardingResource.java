@@ -70,7 +70,8 @@ public class OnboardingResource {
                                 f.diaSemana(),
                                 f.horaInicio(),
                                 f.horaFin(),
-                                f.prioridad()
+                                f.prioridad(),
+                                f.tipo()
                         )
                 ).toList(),
                 request.confianzaPorCurso() == null ? java.util.List.of() : request.confianzaPorCurso().stream().map(cf ->

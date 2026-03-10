@@ -154,6 +154,7 @@ public class PostgresOnboardingCommandAdapter implements OnboardingCommandPort {
                 pref.horaInicio = LocalTime.parse(required(f.horaInicio(), "franja.horaInicio"));
                 pref.horaFin = LocalTime.parse(required(f.horaFin(), "franja.horaFin"));
                 pref.prioridad = (short) (f.prioridad() == null ? 1 : f.prioridad());
+                pref.tipo = f.tipo() == null || f.tipo().isBlank() ? "estudio" : f.tipo();
                 preferenciaEstudioRepository.persist(pref);
                 franjasRegistradas++;
             }

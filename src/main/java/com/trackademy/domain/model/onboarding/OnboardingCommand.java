@@ -41,7 +41,8 @@ public record OnboardingCommand(
             Integer diaSemana,
             String horaInicio,
             String horaFin,
-            Integer prioridad
+            Integer prioridad,
+            String tipo
     ) {
     }
 
