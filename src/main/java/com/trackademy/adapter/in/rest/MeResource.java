@@ -3,7 +3,7 @@ package com.trackademy.adapter.in.rest;
 import com.trackademy.adapter.in.rest.dto.MiCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiPeriodoActualResponse;
 import com.trackademy.application.port.in.MeQueryUseCase;
-import com.trackademy.security.AuthTokenService;
+import com.trackademy.application.port.in.AuthUseCase;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
@@ -18,17 +18,17 @@ import java.util.List;
 public class MeResource {
 
     private final MeQueryUseCase meQueryUseCase;
-    private final AuthTokenService authTokenService;
+    private final AuthUseCase authUseCase;
 
-    public MeResource(MeQueryUseCase meQueryUseCase, AuthTokenService authTokenService) {
+    public MeResource(MeQueryUseCase meQueryUseCase, AuthUseCase authUseCase) {
         this.meQueryUseCase = meQueryUseCase;
-        this.authTokenService = authTokenService;
+        this.authUseCase = authUseCase;
     }
 
     @GET
     @Path("/periodo-actual")
     public Response periodoActual(@HeaderParam("Authorization") String authorization) {
-        var principal = authTokenService.fromAuthorizationHeader(authorization);
+        var principal = authUseCase.authenticate(authorization);
         if (principal.isEmpty()) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
@@ -45,7 +45,7 @@ public class MeResource {
     @GET
     @Path("/cursos")
     public Response misCursos(@HeaderParam("Authorization") String authorization) {
-        var principal = authTokenService.fromAuthorizationHeader(authorization);
+        var principal = authUseCase.authenticate(authorization);
         if (principal.isEmpty()) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }

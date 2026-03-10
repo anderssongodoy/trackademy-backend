@@ -1,9 +1,8 @@
 package com.trackademy.adapter.in.rest;
 
-import com.trackademy.security.AppPrincipal;
-import com.trackademy.security.AuthTokenService;
-import com.trackademy.security.GoogleIdentityService;
-import com.trackademy.security.MicrosoftIdentityService;
+import com.trackademy.application.port.in.AuthUseCase;
+import com.trackademy.domain.model.auth.AuthLoginResult;
+import com.trackademy.domain.model.auth.AuthSession;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
@@ -18,18 +17,10 @@ import jakarta.ws.rs.core.Response;
 @Consumes(MediaType.APPLICATION_JSON)
 public class AuthResource {
 
-    private final MicrosoftIdentityService microsoftIdentityService;
-    private final GoogleIdentityService googleIdentityService;
-    private final AuthTokenService authTokenService;
+    private final AuthUseCase authUseCase;
 
-    public AuthResource(
-        MicrosoftIdentityService microsoftIdentityService,
-        GoogleIdentityService googleIdentityService,
-        AuthTokenService authTokenService
-    ) {
-    this.microsoftIdentityService = microsoftIdentityService;
-    this.googleIdentityService = googleIdentityService;
-    this.authTokenService = authTokenService;
+    public AuthResource(AuthUseCase authUseCase) {
+        this.authUseCase = authUseCase;
     }
 
     @POST
@@ -41,7 +32,7 @@ public class AuthResource {
             .build();
     }
 
-    return microsoftIdentityService.verifyMicrosoftIdToken(request.idToken())
+    return authUseCase.loginWithMicrosoft(request.idToken())
         .map(this::buildLoginResponse)
         .orElse(Response.status(Response.Status.UNAUTHORIZED)
             .entity("Token de Microsoft invalido")
@@ -57,7 +48,7 @@ public class AuthResource {
                     .build();
             }
 
-            return googleIdentityService.verifyGoogleIdToken(request.idToken())
+            return authUseCase.loginWithGoogle(request.idToken())
                 .map(this::buildLoginResponse)
                 .orElse(Response.status(Response.Status.UNAUTHORIZED)
                     .entity("Token de Google invalido")
@@ -67,21 +58,18 @@ public class AuthResource {
     @GET
     @Path("/session")
     public AuthSessionResponse session(@HeaderParam("Authorization") String authorization) {
-    return authTokenService.fromAuthorizationHeader(authorization)
-        .map(principal -> new AuthSessionResponse(true, principal.email(), principal.name()))
-        .orElse(new AuthSessionResponse(false, null, null));
+        AuthSession session = authUseCase.sessionFromAuthorization(authorization);
+        return new AuthSessionResponse(session.authenticated(), session.email(), session.name());
     }
 
-    private Response buildLoginResponse(AppPrincipal principal) {
-    String token = authTokenService.createToken(principal);
-
-    return Response.ok(new MicrosoftLoginResponse(
-        token,
-        "Bearer",
-        authTokenService.getTtlSeconds(),
-        principal.email(),
-        principal.name()
-    )).build();
+    private Response buildLoginResponse(AuthLoginResult result) {
+        return Response.ok(new MicrosoftLoginResponse(
+                result.token(),
+                result.tokenType(),
+                result.expiresIn(),
+                result.email(),
+                result.name()
+        )).build();
     }
 
     public record MicrosoftLoginRequest(

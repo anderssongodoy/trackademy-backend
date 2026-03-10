@@ -3,7 +3,7 @@ package com.trackademy.adapter.in.rest;
 import com.trackademy.adapter.in.rest.dto.OnboardingRequest;
 import com.trackademy.adapter.in.rest.dto.OnboardingResponse;
 import com.trackademy.application.port.in.OnboardingUseCase;
-import com.trackademy.security.AuthTokenService;
+import com.trackademy.application.port.in.AuthUseCase;
 import com.trackademy.domain.model.onboarding.OnboardingCommand;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.HeaderParam;
@@ -19,17 +19,17 @@ import jakarta.ws.rs.core.Response;
 public class OnboardingResource {
 
     private final OnboardingUseCase onboardingUseCase;
-        private final AuthTokenService authTokenService;
+    private final AuthUseCase authUseCase;
 
-        public OnboardingResource(OnboardingUseCase onboardingUseCase, AuthTokenService authTokenService) {
+        public OnboardingResource(OnboardingUseCase onboardingUseCase, AuthUseCase authUseCase) {
         this.onboardingUseCase = onboardingUseCase;
-                this.authTokenService = authTokenService;
+                this.authUseCase = authUseCase;
     }
 
     @POST
     @Path("/basic")
         public Response completarBasico(@HeaderParam("Authorization") String authorization, OnboardingRequest request) {
-                var principal = authTokenService.fromAuthorizationHeader(authorization);
+                var principal = authUseCase.authenticate(authorization);
                 if (principal.isEmpty()) {
                         return Response.status(Response.Status.UNAUTHORIZED).build();
                 }
