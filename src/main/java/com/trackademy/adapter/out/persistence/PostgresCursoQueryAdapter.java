@@ -65,6 +65,13 @@ public class PostgresCursoQueryAdapter implements CursoQueryPort {
     }
 
     @Override
+    public List<Curso> buscarCursos(Long carreraId, String query, Integer limit, Integer offset) {
+        return cursoRepository.buscar(carreraId, query, limit, offset).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public Optional<Curso> obtenerPorCodigo(String codigo) {
         return cursoRepository.buscarPorCodigo(codigo).map(this::toDomain);
     }

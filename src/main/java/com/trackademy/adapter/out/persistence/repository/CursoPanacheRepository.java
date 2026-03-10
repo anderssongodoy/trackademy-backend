@@ -38,4 +38,42 @@ public class CursoPanacheRepository implements PanacheRepositoryBase<CursoEntity
                 .map(r -> ((Number) r).longValue())
                 .toList();
     }
+
+    public List<CursoEntity> buscar(Long carreraId, String query, Integer limit, Integer offset) {
+        String normalized = query == null ? null : ("%" + query.toLowerCase() + "%");
+        int safeLimit = limit == null ? 50 : limit;
+        int safeOffset = offset == null ? 0 : offset;
+
+        if (carreraId == null) {
+            return getEntityManager()
+                    .createNativeQuery(
+                            "select * from curso where (?1 is null " +
+                                    "or unaccent(lower(nombre)) like unaccent(?1) " +
+                                    "or unaccent(lower(codigo)) like unaccent(?1)) " +
+                                    "order by codigo asc limit ?2 offset ?3",
+                            CursoEntity.class
+                    )
+                    .setParameter(1, normalized)
+                    .setParameter(2, safeLimit)
+                    .setParameter(3, safeOffset)
+                    .getResultList();
+        }
+
+        return getEntityManager()
+                .createNativeQuery(
+                        "select c.* from curso c " +
+                                "join curso_carrera cc on cc.curso_id = c.id " +
+                                "where cc.carrera_id = ?1 " +
+                                "and (?2 is null " +
+                                "or unaccent(lower(c.nombre)) like unaccent(?2) " +
+                                "or unaccent(lower(c.codigo)) like unaccent(?2)) " +
+                                "order by c.codigo asc limit ?3 offset ?4",
+                        CursoEntity.class
+                )
+                .setParameter(1, carreraId)
+                .setParameter(2, normalized)
+                .setParameter(3, safeLimit)
+                .setParameter(4, safeOffset)
+                .getResultList();
+    }
 }

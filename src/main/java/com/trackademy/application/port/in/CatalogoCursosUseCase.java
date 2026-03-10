@@ -11,6 +11,8 @@ public interface CatalogoCursosUseCase {
 
     List<Curso> listarCursosPorCarrera(Long carreraId);
 
+    List<Curso> buscarCursos(Long carreraId, String query, Integer limit, Integer offset);
+
     Optional<Curso> obtenerPorCodigo(String codigo);
 
     Optional<CursoDetalle> obtenerDetallePorCodigo(String codigo);

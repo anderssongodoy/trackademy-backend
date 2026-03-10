@@ -20,11 +20,20 @@ public class CatalogoCursosResource {
     }
 
     @GET
-    public List<CursoResponse> listar(@QueryParam("carreraId") Long carreraId) {
-        return (carreraId == null ? catalogoCursosUseCase.listarCursos() : catalogoCursosUseCase.listarCursosPorCarrera(carreraId))
+    public List<CursoResponse> listar(@QueryParam("carreraId") Long carreraId,
+                                      @QueryParam("q") String query,
+                                      @QueryParam("limit") Integer limit,
+                                      @QueryParam("offset") Integer offset) {
+        boolean hasSearch = query != null || limit != null || offset != null;
+        List<CursoResponse> cursos = (hasSearch
+                        ? catalogoCursosUseCase.buscarCursos(carreraId, query, limit, offset)
+                        : (carreraId == null
+                            ? catalogoCursosUseCase.listarCursos()
+                            : catalogoCursosUseCase.listarCursosPorCarrera(carreraId)))
                 .stream()
                 .map(CursoResponse::from)
                 .toList();
+        return cursos;
     }
 
     @GET
