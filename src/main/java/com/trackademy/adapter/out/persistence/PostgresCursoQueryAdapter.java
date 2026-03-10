@@ -1,4 +1,4 @@
-package com.trackademy.adapter.out.persistence;
+﻿package com.trackademy.adapter.out.persistence;
 
 import com.trackademy.adapter.out.persistence.entity.CursoEntity;
 import com.trackademy.adapter.out.persistence.entity.SilaboEntity;
@@ -49,6 +49,17 @@ public class PostgresCursoQueryAdapter implements CursoQueryPort {
     @Override
     public List<Curso> listarCursos() {
         return cursoRepository.listarOrdenadosPorCodigo().stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Curso> listarCursosPorCarrera(Long carreraId) {
+        List<Long> ids = cursoRepository.listarIdsPorCarrera(carreraId);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return cursoRepository.listarPorIds(ids).stream()
                 .map(this::toDomain)
                 .toList();
     }

@@ -1,4 +1,4 @@
-package com.trackademy.application.service;
+﻿package com.trackademy.application.service;
 
 import com.trackademy.application.port.in.CatalogoCursosUseCase;
 import com.trackademy.application.port.out.CursoQueryPort;
@@ -21,6 +21,11 @@ public class CatalogoCursosService implements CatalogoCursosUseCase {
     @Override
     public List<Curso> listarCursos() {
         return cursoQueryPort.listarCursos();
+    }
+
+    @Override
+    public List<Curso> listarCursosPorCarrera(Long carreraId) {
+        return cursoQueryPort.listarCursosPorCarrera(carreraId);
     }
 
     @Override

@@ -1,4 +1,4 @@
-package com.trackademy.adapter.out.persistence.repository;
+﻿package com.trackademy.adapter.out.persistence.repository;
 
 import com.trackademy.adapter.out.persistence.entity.CursoEntity;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
@@ -24,5 +24,18 @@ public class CursoPanacheRepository implements PanacheRepositoryBase<CursoEntity
             return Collections.emptyList();
         }
         return list("id in ?1", ids);
+    }
+
+    public List<Long> listarIdsPorCarrera(Long carreraId) {
+        if (carreraId == null) {
+            return Collections.emptyList();
+        }
+        List<?> rows = getEntityManager()
+                .createNativeQuery("select curso_id from curso_carrera where carrera_id = ?1")
+                .setParameter(1, carreraId)
+                .getResultList();
+        return rows.stream()
+                .map(r -> ((Number) r).longValue())
+                .toList();
     }
 }

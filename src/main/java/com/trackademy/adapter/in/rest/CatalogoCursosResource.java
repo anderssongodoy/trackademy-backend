@@ -1,4 +1,4 @@
-package com.trackademy.adapter.in.rest;
+﻿package com.trackademy.adapter.in.rest;
 
 import com.trackademy.adapter.in.rest.dto.CursoDetalleResponse;
 import com.trackademy.adapter.in.rest.dto.CursoResponse;
@@ -20,8 +20,9 @@ public class CatalogoCursosResource {
     }
 
     @GET
-    public List<CursoResponse> listar() {
-        return catalogoCursosUseCase.listarCursos().stream()
+    public List<CursoResponse> listar(@QueryParam("carreraId") Long carreraId) {
+        return (carreraId == null ? catalogoCursosUseCase.listarCursos() : catalogoCursosUseCase.listarCursosPorCarrera(carreraId))
+                .stream()
                 .map(CursoResponse::from)
                 .toList();
     }
