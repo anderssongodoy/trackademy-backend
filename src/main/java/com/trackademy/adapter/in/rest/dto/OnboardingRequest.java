@@ -1,11 +1,12 @@
-package com.trackademy.adapter.in.rest.dto;
+﻿package com.trackademy.adapter.in.rest.dto;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 public record OnboardingRequest(
-        String email,
         String nombre,
+        String nombrePreferido,
+        String emailInstitucional,
         Long campusId,
         Long periodoId,
         Long carreraId,

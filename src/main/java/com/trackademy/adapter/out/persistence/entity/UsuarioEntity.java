@@ -1,4 +1,4 @@
-package com.trackademy.adapter.out.persistence.entity;
+﻿package com.trackademy.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
 
@@ -15,4 +15,10 @@ public class UsuarioEntity {
 
     @Column(name = "nombre")
     public String nombre;
+
+    @Column(name = "nombre_preferido")
+    public String nombrePreferido;
+
+    @Column(name = "email_institucional")
+    public String emailInstitucional;
 }

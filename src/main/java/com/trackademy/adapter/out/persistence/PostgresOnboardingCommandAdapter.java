@@ -1,4 +1,4 @@
-package com.trackademy.adapter.out.persistence;
+﻿package com.trackademy.adapter.out.persistence;
 
 import com.trackademy.adapter.out.persistence.entity.*;
 import com.trackademy.adapter.out.persistence.repository.*;
@@ -22,6 +22,7 @@ public class PostgresOnboardingCommandAdapter implements OnboardingCommandPort {
     private final UsuarioPeriodoCursoHorarioPanacheRepository horarioRepository;
     private final UsuarioPreferenciaEstudioPanacheRepository preferenciaEstudioRepository;
     private final UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository;
+    private final CursoPanacheRepository cursoRepository;
 
     public PostgresOnboardingCommandAdapter(
             UsuarioPanacheRepository usuarioRepository,
@@ -29,7 +30,8 @@ public class PostgresOnboardingCommandAdapter implements OnboardingCommandPort {
             UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository,
             UsuarioPeriodoCursoHorarioPanacheRepository horarioRepository,
             UsuarioPreferenciaEstudioPanacheRepository preferenciaEstudioRepository,
-            UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository
+            UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository,
+            CursoPanacheRepository cursoRepository
     ) {
         this.usuarioRepository = usuarioRepository;
         this.usuarioPeriodoRepository = usuarioPeriodoRepository;
@@ -37,6 +39,7 @@ public class PostgresOnboardingCommandAdapter implements OnboardingCommandPort {
         this.horarioRepository = horarioRepository;
         this.preferenciaEstudioRepository = preferenciaEstudioRepository;
         this.confianzaRepository = confianzaRepository;
+        this.cursoRepository = cursoRepository;
     }
 
     @Override
@@ -60,6 +63,14 @@ public class PostgresOnboardingCommandAdapter implements OnboardingCommandPort {
 
         if (usuario.nombre == null && command.nombre() != null && !command.nombre().isBlank()) {
             usuario.nombre = command.nombre();
+        }
+
+        if (command.nombrePreferido() != null && !command.nombrePreferido().isBlank()) {
+            usuario.nombrePreferido = command.nombrePreferido();
+        }
+
+        if (command.emailInstitucional() != null && !command.emailInstitucional().isBlank()) {
+            usuario.emailInstitucional = command.emailInstitucional();
         }
 
         UsuarioPeriodoEntity usuarioPeriodo = usuarioPeriodoRepository
@@ -104,7 +115,9 @@ public class PostgresOnboardingCommandAdapter implements OnboardingCommandPort {
 
             upc.seccion = cursoSeleccionado.seccion();
             upc.profesor = cursoSeleccionado.profesor();
-            upc.modalidad = cursoSeleccionado.modalidad();
+            upc.modalidad = cursoRepository.findByIdOptional(cursoId)
+                    .map(c -> c.modalidad)
+                    .orElse(cursoSeleccionado.modalidad());
             upc.estado = "matriculado";
             upc.activo = true;
 

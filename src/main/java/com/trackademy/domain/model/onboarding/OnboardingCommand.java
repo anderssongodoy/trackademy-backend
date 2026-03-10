@@ -1,4 +1,4 @@
-package com.trackademy.domain.model.onboarding;
+﻿package com.trackademy.domain.model.onboarding;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -6,6 +6,8 @@ import java.util.List;
 public record OnboardingCommand(
         String email,
         String nombre,
+        String nombrePreferido,
+        String emailInstitucional,
         Long campusId,
         Long periodoId,
         Long carreraId,

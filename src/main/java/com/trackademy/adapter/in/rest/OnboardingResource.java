@@ -1,4 +1,4 @@
-package com.trackademy.adapter.in.rest;
+﻿package com.trackademy.adapter.in.rest;
 
 import com.trackademy.adapter.in.rest.dto.OnboardingRequest;
 import com.trackademy.adapter.in.rest.dto.OnboardingResponse;
@@ -21,24 +21,26 @@ public class OnboardingResource {
     private final OnboardingUseCase onboardingUseCase;
     private final AuthUseCase authUseCase;
 
-        public OnboardingResource(OnboardingUseCase onboardingUseCase, AuthUseCase authUseCase) {
+    public OnboardingResource(OnboardingUseCase onboardingUseCase, AuthUseCase authUseCase) {
         this.onboardingUseCase = onboardingUseCase;
-                this.authUseCase = authUseCase;
+        this.authUseCase = authUseCase;
     }
 
     @POST
     @Path("/basic")
-        public Response completarBasico(@HeaderParam("Authorization") String authorization, OnboardingRequest request) {
-                var principal = authUseCase.authenticate(authorization);
-                if (principal.isEmpty()) {
-                        return Response.status(Response.Status.UNAUTHORIZED).build();
-                }
+    public Response completarBasico(@HeaderParam("Authorization") String authorization, OnboardingRequest request) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
 
-                String email = principal.get().email();
+        String email = principal.get().email();
 
         OnboardingCommand command = new OnboardingCommand(
-                                email,
+                email,
                 request.nombre(),
+                request.nombrePreferido(),
+                request.emailInstitucional(),
                 request.campusId(),
                 request.periodoId(),
                 request.carreraId(),
