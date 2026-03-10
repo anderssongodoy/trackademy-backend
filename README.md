@@ -1,103 +1,201 @@
 # Trackademy Backend
 
-Backend de Trackademy construido con **Quarkus + Java 21 + PostgreSQL**, siguiendo una base de arquitectura hexagonal (puertos y adaptadores) y orientado a onboarding académico, catálogo de cursos/sílabos y evolución a analítica.
+Backend de Trackademy construido con **Quarkus + Java 21 + PostgreSQL** y arquitectura **hexagonal** (puertos y adaptadores). El objetivo es servir onboarding académico, catálogo de cursos/sílabos y autenticación básica, con una base sólida para evolucionar a analítica.
+
+## Arquitectura
+
+### Hexagonal (código)
+
+- `adapter/in/rest`: controladores HTTP y DTOs.
+- `application/port/in`: casos de uso (input ports).
+- `application/port/out`: contratos hacia persistencia o servicios externos.
+- `application/service`: implementación de casos de uso.
+- `adapter/out/persistence`: adaptadores a PostgreSQL (JPA/Panache).
+- `adapter/out/auth`: adaptadores de autenticación (JWT/Google/Microsoft).
+- `domain/model`: modelos puros de dominio.
+
+### Despliegue (infra)
+
+```
+Frontend -> Nginx -> Quarkus (systemd) -> PostgreSQL (Docker, localhost)
+```
+
+- **Nginx** expone HTTPS.
+- **Quarkus** escucha en `127.0.0.1:8080`.
+- **PostgreSQL** solo en `127.0.0.1:5432`.
 
 ## Stack
 
 - Java 21
 - Quarkus 3.x
 - Maven Wrapper
-- PostgreSQL
+- PostgreSQL 16
 - Hibernate ORM + Panache
 - OpenAPI / Swagger UI
 
-## Estado Actual
+## Endpoints (API)
 
-### Ya implementado
+### Health
+- `GET /health`
 
-- Health check: `GET /health`
-- Catálogo de cursos:
-  - `GET /api/v1/catalog/cursos`
-  - `GET /api/v1/catalog/cursos/{codigo}`
-  - `GET /api/v1/catalog/cursos/{codigo}/detalle`
-- Catálogos académicos:
-  - `GET /api/v1/catalog/campuses?universidadId=...`
-  - `GET /api/v1/catalog/carreras?universidadId=...`
-  - `GET /api/v1/catalog/periodos?universidadId=...`
-  - `GET /api/v1/catalog/periodos/{periodoId}/eventos`
-- Onboarding básico/avanzado en un solo request:
-  - `POST /api/v1/onboarding/basic`
-- Datos del usuario (temporal con email por query):
-  - `GET /api/v1/me/periodo-actual?email=...`
-  - `GET /api/v1/me/cursos?email=...`
+### Catálogo de cursos
+- `GET /api/v1/catalog/cursos`
+- `GET /api/v1/catalog/cursos/{codigo}`
+- `GET /api/v1/catalog/cursos/{codigo}/detalle`
 
-### Pendiente (siguiente fase)
+### Catálogo académico
+- `GET /api/v1/catalog/campuses?universidadId=...`
+- `GET /api/v1/catalog/carreras?universidadId=...`
+- `GET /api/v1/catalog/periodos?universidadId=...`
+- `GET /api/v1/catalog/periodos/{periodoId}/eventos`
 
-- Autenticación/autorización real con Microsoft JWT (eliminar `email` por query)
-- Endpoints de notas, tareas y calendario combinado
-- OpenAPI más formal para contrato frontend
+### Onboarding
+- `POST /api/v1/onboarding/basic`
 
-## Estructura (Hexagonal Base)
+### Mi cuenta
+- `GET /api/v1/me/periodo-actual` (requiere `Authorization: Bearer ...`)
+- `GET /api/v1/me/cursos` (requiere `Authorization: Bearer ...`)
 
-- `adapter/in/rest`: controladores HTTP y DTOs
-- `application/port/in`: casos de uso (input ports)
-- `application/port/out`: contratos hacia persistencia/externos (output ports)
-- `application/service`: implementación de casos de uso
-- `adapter/out/persistence`: adaptadores PostgreSQL
-- `adapter/out/persistence/entity|repository`: entidades JPA y repositorios
-- `domain/model`: modelos de dominio
-
-## Requisitos
-
-- Java 21 instalado
-- PostgreSQL corriendo (local o remoto)
-- Base creada: `trackademy_bd`
+### Auth
+- `POST /api/v1/auth/google`
+- `POST /api/v1/auth/microsoft`
+- `GET /api/v1/auth/session`
 
 ## Configuración
 
-Archivo: `src/main/resources/application.properties`
+Archivo base: `src/main/resources/application.properties`.
 
-Ejemplo local:
+Variables de entorno principales:
 
-```properties
-quarkus.datasource.db-kind=postgresql
-quarkus.datasource.jdbc.url=${QUARKUS_DATASOURCE_JDBC_URL}
-quarkus.datasource.username=${QUARKUS_DATASOURCE_USERNAME}
-quarkus.datasource.password=${QUARKUS_DATASOURCE_PASSWORD}
+- `QUARKUS_DATASOURCE_JDBC_URL`
+- `QUARKUS_DATASOURCE_USERNAME`
+- `QUARKUS_DATASOURCE_PASSWORD`
+- `QUARKUS_HTTP_CORS`
+- `QUARKUS_HTTP_CORS_ORIGINS`
+- `APP_AUTH_MICROSOFT_FRONTEND_CLIENT_ID`
+- `APP_AUTH_GOOGLE_FRONTEND_CLIENT_ID`
+- `APP_AUTH_JWT_SECRET`
 
-quarkus.hibernate-orm.database.generation=none
-quarkus.flyway.migrate-at-start=false
-quarkus.swagger-ui.always-include=true
+Ejemplo local (PowerShell):
+
+```powershell
+$env:QUARKUS_DATASOURCE_JDBC_URL="jdbc:postgresql://127.0.0.1:5432/trackademy_bd"
+$env:QUARKUS_DATASOURCE_USERNAME="postgres"
+$env:QUARKUS_DATASOURCE_PASSWORD="123"
+.\mvnw.cmd quarkus:dev
 ```
 
-## Ejecutar en local
-
-Desde la carpeta `trackademy-backend`:
+## Ejecución local
 
 ```bash
-export QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://127.0.0.1:5432/trackademy_bd
-export QUARKUS_DATASOURCE_USERNAME=trackademy
-export QUARKUS_DATASOURCE_PASSWORD=<definir-en-la-vps>
 ./mvnw -DskipTests compile
 ./mvnw quarkus:dev
 ```
 
-App: `http://localhost:8080`
+App: `http://localhost:8080`  
+Swagger: `http://localhost:8080/q/swagger-ui`
 
-Swagger UI: `http://localhost:8080/q/swagger-ui`
+## Producción (VPS)
 
-## Integración con el proyecto de extracción
+### Build
 
-El esquema principal y la ingesta de sílabos viven en `extraer-pdf`.
+```bash
+cd /opt/trackademy/trackademy-backend
+set -a
+source .env.prod
+set +a
+./mvnw -Dmaven.repo.local=/opt/trackademy/.m2/repository clean package -DskipTests
+```
 
-Flujo recomendado:
+### Servicio (systemd)
 
-1. Ejecutar `db_setup.py` y `load_json_to_db.py` en `extraer-pdf`.
-2. Levantar este backend apuntando al mismo Postgres.
-3. Consumir endpoints de catálogo y onboarding desde frontend.
+```bash
+sudo systemctl restart trackademy-backend
+sudo systemctl status trackademy-backend --no-pager
+```
+
+### Logs
+
+```bash
+journalctl -u trackademy-backend -n 100 --no-pager
+journalctl -u trackademy-backend -f
+```
+
+## CORS
+
+El backend controla CORS. Configura:
+
+```
+QUARKUS_HTTP_CORS=true
+QUARKUS_HTTP_CORS_ORIGINS=https://trackademy.trinitylabs.app
+QUARKUS_HTTP_CORS_HEADERS=accept,authorization,content-type,x-requested-with
+QUARKUS_HTTP_CORS_METHODS=GET,POST,PUT,DELETE,OPTIONS
+```
+
+Prueba preflight:
+
+```bash
+curl -i -X OPTIONS https://api.trackademy.trinitylabs.app/api/v1/auth/google \
+  -H "Origin: https://trackademy.trinitylabs.app" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type,authorization"
+```
+
+## Base de datos
+
+Postgres corre en Docker y solo expone `127.0.0.1:5432`.
+
+Conectar por psql:
+
+```bash
+sudo docker exec -it trackademy-postgres psql -U trackademy -d trackademy_bd
+```
+
+## pgAdmin desde PC (túnel SSH)
+
+```bash
+ssh -L 55432:127.0.0.1:5432 oracle-trackademy
+```
+
+En pgAdmin:
+- Host: `127.0.0.1`
+- Port: `55432`
+- Database: `trackademy_bd`
+- User: `trackademy`
+
+## Backups
+
+Script:
+
+```
+/opt/trackademy/scripts/backup_pg.sh
+```
+
+Ejecutar manual:
+
+```bash
+/opt/trackademy/scripts/backup_pg.sh
+ls -lh /opt/trackademy/backups
+```
+
+## Checklist antes de modificar
+
+- Ver estado de servicios:
+  ```bash
+  sudo systemctl status trackademy-backend --no-pager
+  sudo systemctl status nginx --no-pager
+  sudo systemctl status certbot.timer --no-pager
+  ```
+- Verificar backups recientes:
+  ```bash
+  ls -lh /opt/trackademy/backups | tail -n 3
+  ```
+- Revisar puertos expuestos:
+  ```bash
+  sudo ss -tulpn | rg ':5432|:8080|:80|:443'
+  ```
 
 ## Notas
 
-- `GET /api/v1/catalog/periodos` actualmente devuelve solo periodos con `fecha_inicio` y `fecha_fin` no nulos.
+- `GET /api/v1/catalog/periodos` devuelve solo periodos con `fecha_inicio` y `fecha_fin` no nulos.
 - `periodo_evento` almacena hitos institucionales (inicio de clases, finales, rezagados, retiros, etc.).
-- El uso de `email` en endpoints `/me` es temporal hasta incorporar JWT.
