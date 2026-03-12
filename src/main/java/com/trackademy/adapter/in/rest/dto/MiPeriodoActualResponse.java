@@ -1,8 +1,9 @@
-package com.trackademy.adapter.in.rest.dto;
+﻿package com.trackademy.adapter.in.rest.dto;
 
 import com.trackademy.domain.model.me.MiPeriodoActual;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 public record MiPeriodoActualResponse(
@@ -15,7 +16,10 @@ public record MiPeriodoActualResponse(
         String onboardingEstado,
         OffsetDateTime onboardingCompletadoAt,
         BigDecimal metaPromedioCiclo,
-        Integer horasEstudioSemanaObjetivo
+        Integer horasEstudioSemanaObjetivo,
+        String periodoEtiqueta,
+        LocalDate periodoFechaInicio,
+        LocalDate periodoFechaFin
 ) {
     public static MiPeriodoActualResponse from(MiPeriodoActual m) {
         return new MiPeriodoActualResponse(
@@ -28,7 +32,10 @@ public record MiPeriodoActualResponse(
                 m.onboardingEstado(),
                 m.onboardingCompletadoAt(),
                 m.metaPromedioCiclo(),
-                m.horasEstudioSemanaObjetivo()
+                m.horasEstudioSemanaObjetivo(),
+                m.periodoEtiqueta(),
+                m.periodoFechaInicio(),
+                m.periodoFechaFin()
         );
     }
 }

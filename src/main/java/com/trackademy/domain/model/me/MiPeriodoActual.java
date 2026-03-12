@@ -1,6 +1,7 @@
-package com.trackademy.domain.model.me;
+﻿package com.trackademy.domain.model.me;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 public record MiPeriodoActual(
@@ -13,6 +14,9 @@ public record MiPeriodoActual(
         String onboardingEstado,
         OffsetDateTime onboardingCompletadoAt,
         BigDecimal metaPromedioCiclo,
-        Integer horasEstudioSemanaObjetivo
+        Integer horasEstudioSemanaObjetivo,
+        String periodoEtiqueta,
+        LocalDate periodoFechaInicio,
+        LocalDate periodoFechaFin
 ) {
 }

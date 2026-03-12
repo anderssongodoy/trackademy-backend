@@ -1,8 +1,10 @@
-package com.trackademy.application.service;
+﻿package com.trackademy.application.service;
 
 import com.trackademy.application.port.in.MeQueryUseCase;
 import com.trackademy.application.port.out.MeQueryPort;
 import com.trackademy.domain.model.me.MiCurso;
+import com.trackademy.domain.model.me.MiEvaluacionCurso;
+import com.trackademy.domain.model.me.MiHorarioCurso;
 import com.trackademy.domain.model.me.MiPeriodoActual;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -26,5 +28,15 @@ public class MeQueryService implements MeQueryUseCase {
     @Override
     public List<MiCurso> listarMisCursos(String email) {
         return meQueryPort.listarMisCursos(email);
+    }
+
+    @Override
+    public List<MiHorarioCurso> listarMisHorarios(String email) {
+        return meQueryPort.listarMisHorarios(email);
+    }
+
+    @Override
+    public List<MiEvaluacionCurso> listarMisEvaluaciones(String email, Long cursoId) {
+        return meQueryPort.listarMisEvaluaciones(email, cursoId);
     }
 }
