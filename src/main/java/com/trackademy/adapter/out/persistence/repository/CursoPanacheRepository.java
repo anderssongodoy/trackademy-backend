@@ -1,4 +1,4 @@
-﻿package com.trackademy.adapter.out.persistence.repository;
+package com.trackademy.adapter.out.persistence.repository;
 
 import com.trackademy.adapter.out.persistence.entity.CursoEntity;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;

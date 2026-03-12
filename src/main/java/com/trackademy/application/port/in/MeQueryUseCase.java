@@ -1,4 +1,4 @@
-﻿package com.trackademy.application.port.in;
+package com.trackademy.application.port.in;
 
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;

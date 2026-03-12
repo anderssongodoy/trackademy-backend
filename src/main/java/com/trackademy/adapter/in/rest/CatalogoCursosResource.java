@@ -1,4 +1,4 @@
-﻿package com.trackademy.adapter.in.rest;
+package com.trackademy.adapter.in.rest;
 
 import com.trackademy.adapter.in.rest.dto.CursoDetalleResponse;
 import com.trackademy.adapter.in.rest.dto.CursoResponse;

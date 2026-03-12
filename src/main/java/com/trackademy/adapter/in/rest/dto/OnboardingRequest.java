@@ -1,4 +1,4 @@
-﻿package com.trackademy.adapter.in.rest.dto;
+package com.trackademy.adapter.in.rest.dto;
 
 import java.math.BigDecimal;
 import java.util.List;

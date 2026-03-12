@@ -1,4 +1,4 @@
-﻿package com.trackademy.adapter.in.rest;
+package com.trackademy.adapter.in.rest;
 
 import com.trackademy.adapter.in.rest.dto.OnboardingRequest;
 import com.trackademy.adapter.in.rest.dto.OnboardingResponse;

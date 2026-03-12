@@ -1,4 +1,4 @@
-﻿package com.trackademy.domain.model.me;
+package com.trackademy.domain.model.me;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

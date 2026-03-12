@@ -1,4 +1,4 @@
-﻿package com.trackademy.domain.model.onboarding;
+package com.trackademy.domain.model.onboarding;
 
 import java.math.BigDecimal;
 import java.util.List;

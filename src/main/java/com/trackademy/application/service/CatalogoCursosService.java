@@ -1,4 +1,4 @@
-﻿package com.trackademy.application.service;
+package com.trackademy.application.service;
 
 import com.trackademy.application.port.in.CatalogoCursosUseCase;
 import com.trackademy.application.port.out.CursoQueryPort;

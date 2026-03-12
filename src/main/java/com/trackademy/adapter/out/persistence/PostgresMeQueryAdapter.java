@@ -1,4 +1,4 @@
-﻿package com.trackademy.adapter.out.persistence;
+package com.trackademy.adapter.out.persistence;
 
 import com.trackademy.adapter.out.persistence.entity.CursoEntity;
 import com.trackademy.adapter.out.persistence.entity.PeriodoEntity;

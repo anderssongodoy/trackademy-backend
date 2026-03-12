@@ -1,4 +1,4 @@
-﻿package com.trackademy.adapter.out.persistence.entity;
+package com.trackademy.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
 

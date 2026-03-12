@@ -1,4 +1,4 @@
-﻿package com.trackademy.adapter.in.rest.dto;
+package com.trackademy.adapter.in.rest.dto;
 
 import com.trackademy.domain.model.me.MiPeriodoActual;
 
