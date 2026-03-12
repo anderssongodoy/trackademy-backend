@@ -1,14 +1,19 @@
-﻿package com.trackademy.adapter.in.rest;
+package com.trackademy.adapter.in.rest;
 
+import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoRequest;
+import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiEvaluacionCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiHorarioCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiPeriodoActualResponse;
-import com.trackademy.application.port.in.MeQueryUseCase;
 import com.trackademy.application.port.in.AuthUseCase;
+import com.trackademy.application.port.in.MeCommandUseCase;
+import com.trackademy.application.port.in.MeQueryUseCase;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
@@ -21,10 +26,12 @@ import java.util.List;
 public class MeResource {
 
     private final MeQueryUseCase meQueryUseCase;
+    private final MeCommandUseCase meCommandUseCase;
     private final AuthUseCase authUseCase;
 
-    public MeResource(MeQueryUseCase meQueryUseCase, AuthUseCase authUseCase) {
+    public MeResource(MeQueryUseCase meQueryUseCase, MeCommandUseCase meCommandUseCase, AuthUseCase authUseCase) {
         this.meQueryUseCase = meQueryUseCase;
+        this.meCommandUseCase = meCommandUseCase;
         this.authUseCase = authUseCase;
     }
 
@@ -77,6 +84,29 @@ public class MeResource {
                 .toList();
 
         return Response.ok(horarios).build();
+    }
+
+    @PUT
+    @Path("/cursos/{usuarioPeriodoCursoId}/horarios")
+    public Response actualizarHorario(
+            @HeaderParam("Authorization") String authorization,
+            @PathParam("usuarioPeriodoCursoId") Long usuarioPeriodoCursoId,
+            ActualizarHorarioCursoRequest request
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        try {
+            return Response.ok(
+                    ActualizarHorarioCursoResponse.from(
+                            meCommandUseCase.actualizarHorarioCurso(principal.get().email(), request.toCommand(usuarioPeriodoCursoId))
+                    )
+            ).build();
+        } catch (IllegalArgumentException ex) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
+        }
     }
 
     @GET
