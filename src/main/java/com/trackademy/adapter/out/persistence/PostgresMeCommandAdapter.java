@@ -290,6 +290,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
 
         UsuarioPeriodoCursoEntity usuarioPeriodoCurso = validarAccesoCurso(email, command.usuarioPeriodoCursoId());
         PeriodoEntity periodo = periodoRepository.findById(usuarioPeriodo.periodoId);
+        CursoEntity curso = cursoRepository.findById(usuarioPeriodoCurso.cursoId);
 
         Optional<SilaboEntity> silaboOpt = silaboRepository.buscarVigentePorCursoId(usuarioPeriodoCurso.cursoId);
         if (silaboOpt.isEmpty()) {
@@ -329,8 +330,8 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
                 evaluacion.id,
                 usuarioPeriodoCurso.id,
                 usuarioPeriodoCurso.cursoId,
-                null,
-                null,
+                curso == null ? null : curso.codigo,
+                curso == null ? null : curso.nombre,
                 silaboEvaluacion.codigo,
                 silaboEvaluacion.tipo,
                 silaboEvaluacion.descripcion,
