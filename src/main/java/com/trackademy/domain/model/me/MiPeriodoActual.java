@@ -6,6 +6,9 @@ import java.time.OffsetDateTime;
 
 public record MiPeriodoActual(
         Long usuarioId,
+        String nombre,
+        String nombrePreferido,
+        String emailInstitucional,
         Long usuarioPeriodoId,
         Long periodoId,
         Long campusId,

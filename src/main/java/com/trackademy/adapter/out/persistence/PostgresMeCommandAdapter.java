@@ -22,6 +22,7 @@ import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoPanacheRe
 import com.trackademy.application.port.out.MeCommandPort;
 import com.trackademy.domain.model.me.ActualizarConfiguracionPeriodoCommand;
 import com.trackademy.domain.model.me.ActualizarPerfilAcademicoCommand;
+import com.trackademy.domain.model.me.ActualizarPerfilPersonalCommand;
 import com.trackademy.domain.model.me.ActualizarDatosCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoResult;
@@ -38,9 +39,12 @@ import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @ApplicationScoped
 public class PostgresMeCommandAdapter implements MeCommandPort {
+
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 
     private final UsuarioPanacheRepository usuarioRepository;
     private final CursoPanacheRepository cursoRepository;
@@ -153,6 +157,9 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
 
         return new MiPeriodoActual(
                 usuario.id,
+                usuario.nombre,
+                usuario.nombrePreferido,
+                usuario.emailInstitucional,
                 usuarioPeriodo.id,
                 usuarioPeriodo.periodoId,
                 usuarioPeriodo.campusId,
@@ -194,6 +201,58 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
 
         return new MiPeriodoActual(
                 usuario.id,
+                usuario.nombre,
+                usuario.nombrePreferido,
+                usuario.emailInstitucional,
+                usuarioPeriodo.id,
+                usuarioPeriodo.periodoId,
+                usuarioPeriodo.campusId,
+                usuarioPeriodo.carreraId,
+                usuarioPeriodo.cicloActual,
+                usuarioPeriodo.onboardingEstado,
+                usuarioPeriodo.onboardingCompletadoAt,
+                usuarioPeriodo.metaPromedioCiclo,
+                usuarioPeriodo.horasEstudioSemanaObjetivo,
+                periodo != null ? periodo.etiqueta : null,
+                periodo != null ? periodo.fechaInicio : null,
+                periodo != null ? periodo.fechaFin : null
+        );
+    }
+
+    @Override
+    @Transactional
+    public MiPeriodoActual actualizarPerfilPersonal(String email, ActualizarPerfilPersonalCommand command) {
+        if (command == null) {
+            throw new IllegalArgumentException("No llegaron datos para actualizar el perfil personal.");
+        }
+
+        String nombre = limpiarTexto(command.nombre());
+        if (nombre == null || nombre.length() < 3) {
+            throw new IllegalArgumentException("El nombre completo debe tener al menos 3 caracteres.");
+        }
+
+        String emailInstitucional = limpiarTexto(command.emailInstitucional());
+        if (emailInstitucional != null && !EMAIL_PATTERN.matcher(emailInstitucional).matches()) {
+            throw new IllegalArgumentException("El correo institucional debe tener un formato valido.");
+        }
+
+        UsuarioEntity usuario = usuarioRepository.buscarPorEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos el usuario autenticado."));
+
+        UsuarioPeriodoEntity usuarioPeriodo = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuario.id)
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos un periodo activo para el usuario."));
+
+        usuario.nombre = nombre;
+        usuario.nombrePreferido = limpiarTexto(command.nombrePreferido());
+        usuario.emailInstitucional = emailInstitucional;
+
+        PeriodoEntity periodo = periodoRepository.findById(usuarioPeriodo.periodoId);
+
+        return new MiPeriodoActual(
+                usuario.id,
+                usuario.nombre,
+                usuario.nombrePreferido,
+                usuario.emailInstitucional,
                 usuarioPeriodo.id,
                 usuarioPeriodo.periodoId,
                 usuarioPeriodo.campusId,

@@ -4,6 +4,7 @@ import com.trackademy.application.port.in.MeCommandUseCase;
 import com.trackademy.application.port.out.MeCommandPort;
 import com.trackademy.domain.model.me.ActualizarConfiguracionPeriodoCommand;
 import com.trackademy.domain.model.me.ActualizarPerfilAcademicoCommand;
+import com.trackademy.domain.model.me.ActualizarPerfilPersonalCommand;
 import com.trackademy.domain.model.me.ActualizarDatosCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoResult;
@@ -30,6 +31,11 @@ public class MeCommandService implements MeCommandUseCase {
     @Override
     public MiPeriodoActual actualizarPerfilAcademico(String email, ActualizarPerfilAcademicoCommand command) {
         return meCommandPort.actualizarPerfilAcademico(email, command);
+    }
+
+    @Override
+    public MiPeriodoActual actualizarPerfilPersonal(String email, ActualizarPerfilPersonalCommand command) {
+        return meCommandPort.actualizarPerfilPersonal(email, command);
     }
 
     @Override

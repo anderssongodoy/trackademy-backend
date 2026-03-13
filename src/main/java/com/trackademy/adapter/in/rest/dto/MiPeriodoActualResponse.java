@@ -8,6 +8,9 @@ import java.time.OffsetDateTime;
 
 public record MiPeriodoActualResponse(
         Long usuarioId,
+        String nombre,
+        String nombrePreferido,
+        String emailInstitucional,
         Long usuarioPeriodoId,
         Long periodoId,
         Long campusId,
@@ -24,6 +27,9 @@ public record MiPeriodoActualResponse(
     public static MiPeriodoActualResponse from(MiPeriodoActual m) {
         return new MiPeriodoActualResponse(
                 m.usuarioId(),
+                m.nombre(),
+                m.nombrePreferido(),
+                m.emailInstitucional(),
                 m.usuarioPeriodoId(),
                 m.periodoId(),
                 m.campusId(),

@@ -217,7 +217,10 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
         UsuarioPeriodoEntity up = contexto.usuarioPeriodo();
         PeriodoEntity periodo = contexto.periodo();
         return new MiPeriodoActual(
-                up.usuarioId,
+                contexto.usuario().id,
+                contexto.usuario().nombre,
+                contexto.usuario().nombrePreferido,
+                contexto.usuario().emailInstitucional,
                 up.id,
                 up.periodoId,
                 up.campusId,
