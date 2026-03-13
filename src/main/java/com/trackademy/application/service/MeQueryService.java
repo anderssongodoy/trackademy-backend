@@ -2,12 +2,15 @@ package com.trackademy.application.service;
 
 import com.trackademy.application.port.in.MeQueryUseCase;
 import com.trackademy.application.port.out.MeQueryPort;
+import com.trackademy.domain.model.me.MiCalendarioEvento;
 import com.trackademy.domain.model.me.MiCurso;
+import com.trackademy.domain.model.me.MiDashboardResumen;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
 import com.trackademy.domain.model.me.MiHorarioCurso;
 import com.trackademy.domain.model.me.MiPeriodoActual;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +29,11 @@ public class MeQueryService implements MeQueryUseCase {
     }
 
     @Override
+    public Optional<MiDashboardResumen> obtenerDashboard(String email) {
+        return meQueryPort.obtenerDashboard(email);
+    }
+
+    @Override
     public List<MiCurso> listarMisCursos(String email) {
         return meQueryPort.listarMisCursos(email);
     }
@@ -38,5 +46,10 @@ public class MeQueryService implements MeQueryUseCase {
     @Override
     public List<MiEvaluacionCurso> listarMisEvaluaciones(String email, Long cursoId) {
         return meQueryPort.listarMisEvaluaciones(email, cursoId);
+    }
+
+    @Override
+    public List<MiCalendarioEvento> listarCalendario(String email, LocalDate from, LocalDate to) {
+        return meQueryPort.listarCalendario(email, from, to);
     }
 }

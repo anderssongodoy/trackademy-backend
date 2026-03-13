@@ -1,11 +1,15 @@
 package com.trackademy.adapter.in.rest;
 
+import com.trackademy.adapter.in.rest.dto.ActualizarDatosCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoResponse;
+import com.trackademy.adapter.in.rest.dto.MiCalendarioEventoResponse;
 import com.trackademy.adapter.in.rest.dto.MiCursoResponse;
+import com.trackademy.adapter.in.rest.dto.MiDashboardResponse;
 import com.trackademy.adapter.in.rest.dto.MiEvaluacionCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiHorarioCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiPeriodoActualResponse;
+import com.trackademy.adapter.in.rest.dto.RegistrarNotaEvaluacionRequest;
 import com.trackademy.application.port.in.AuthUseCase;
 import com.trackademy.application.port.in.MeCommandUseCase;
 import com.trackademy.application.port.in.MeQueryUseCase;
@@ -19,6 +23,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Path("/api/v1/me")
@@ -47,6 +52,21 @@ public class MeResource {
 
         return meQueryUseCase.obtenerPeriodoActual(email)
                 .map(MiPeriodoActualResponse::from)
+                .map(Response::ok)
+                .orElse(Response.status(Response.Status.NOT_FOUND))
+                .build();
+    }
+
+    @GET
+    @Path("/dashboard")
+    public Response dashboard(@HeaderParam("Authorization") String authorization) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        return meQueryUseCase.obtenerDashboard(principal.get().email())
+                .map(MiDashboardResponse::from)
                 .map(Response::ok)
                 .orElse(Response.status(Response.Status.NOT_FOUND))
                 .build();
@@ -86,6 +106,51 @@ public class MeResource {
         return Response.ok(horarios).build();
     }
 
+    @GET
+    @Path("/calendario")
+    public Response miCalendario(
+            @HeaderParam("Authorization") String authorization,
+            @QueryParam("from") LocalDate from,
+            @QueryParam("to") LocalDate to
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        List<MiCalendarioEventoResponse> eventos = meQueryUseCase.listarCalendario(principal.get().email(), from, to).stream()
+                .map(MiCalendarioEventoResponse::from)
+                .toList();
+
+        return Response.ok(eventos).build();
+    }
+
+    @PUT
+    @Path("/cursos/{usuarioPeriodoCursoId}")
+    public Response actualizarDatosCurso(
+            @HeaderParam("Authorization") String authorization,
+            @PathParam("usuarioPeriodoCursoId") Long usuarioPeriodoCursoId,
+            ActualizarDatosCursoRequest request
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        try {
+            return Response.ok(
+                    MiCursoResponse.from(
+                            meCommandUseCase.actualizarDatosCurso(
+                                    principal.get().email(),
+                                    request.toCommand(usuarioPeriodoCursoId)
+                            )
+                    )
+            ).build();
+        } catch (IllegalArgumentException ex) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
+        }
+    }
+
     @PUT
     @Path("/cursos/{usuarioPeriodoCursoId}/horarios")
     public Response actualizarHorario(
@@ -102,6 +167,33 @@ public class MeResource {
             return Response.ok(
                     ActualizarHorarioCursoResponse.from(
                             meCommandUseCase.actualizarHorarioCurso(principal.get().email(), request.toCommand(usuarioPeriodoCursoId))
+                    )
+            ).build();
+        } catch (IllegalArgumentException ex) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
+        }
+    }
+
+    @PUT
+    @Path("/cursos/{usuarioPeriodoCursoId}/evaluaciones/{evaluacionCodigo}/nota")
+    public Response registrarNotaEvaluacion(
+            @HeaderParam("Authorization") String authorization,
+            @PathParam("usuarioPeriodoCursoId") Long usuarioPeriodoCursoId,
+            @PathParam("evaluacionCodigo") String evaluacionCodigo,
+            RegistrarNotaEvaluacionRequest request
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        try {
+            return Response.ok(
+                    MiEvaluacionCursoResponse.from(
+                            meCommandUseCase.registrarNotaEvaluacion(
+                                    principal.get().email(),
+                                    request.toCommand(usuarioPeriodoCursoId, evaluacionCodigo)
+                            )
                     )
             ).build();
         } catch (IllegalArgumentException ex) {

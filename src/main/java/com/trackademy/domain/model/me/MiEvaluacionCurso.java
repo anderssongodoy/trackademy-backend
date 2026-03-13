@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record MiEvaluacionCurso(
+        Long usuarioPeriodoEvaluacionId,
         Long usuarioPeriodoCursoId,
         Long cursoId,
         String codigoCurso,
@@ -14,6 +15,11 @@ public record MiEvaluacionCurso(
         BigDecimal porcentaje,
         Integer semana,
         LocalDate fechaEstimada,
-        String observacion
+        LocalDate fechaReal,
+        BigDecimal nota,
+        Boolean exonerado,
+        Boolean esRezagado,
+        String observacion,
+        String comentarios
 ) {
 }

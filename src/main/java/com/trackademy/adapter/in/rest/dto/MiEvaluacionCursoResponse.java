@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record MiEvaluacionCursoResponse(
+        Long usuarioPeriodoEvaluacionId,
         Long usuarioPeriodoCursoId,
         Long cursoId,
         String codigoCurso,
@@ -16,10 +17,16 @@ public record MiEvaluacionCursoResponse(
         BigDecimal porcentaje,
         Integer semana,
         LocalDate fechaEstimada,
-        String observacion
+        LocalDate fechaReal,
+        BigDecimal nota,
+        Boolean exonerado,
+        Boolean esRezagado,
+        String observacion,
+        String comentarios
 ) {
     public static MiEvaluacionCursoResponse from(MiEvaluacionCurso m) {
         return new MiEvaluacionCursoResponse(
+                m.usuarioPeriodoEvaluacionId(),
                 m.usuarioPeriodoCursoId(),
                 m.cursoId(),
                 m.codigoCurso(),
@@ -30,7 +37,12 @@ public record MiEvaluacionCursoResponse(
                 m.porcentaje(),
                 m.semana(),
                 m.fechaEstimada(),
-                m.observacion()
+                m.fechaReal(),
+                m.nota(),
+                m.exonerado(),
+                m.esRezagado(),
+                m.observacion(),
+                m.comentarios()
         );
     }
 }

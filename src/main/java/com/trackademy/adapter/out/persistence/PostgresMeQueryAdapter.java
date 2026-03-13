@@ -2,28 +2,39 @@ package com.trackademy.adapter.out.persistence;
 
 import com.trackademy.adapter.out.persistence.entity.CursoEntity;
 import com.trackademy.adapter.out.persistence.entity.PeriodoEntity;
+import com.trackademy.adapter.out.persistence.entity.PeriodoEventoEntity;
 import com.trackademy.adapter.out.persistence.entity.SilaboEntity;
 import com.trackademy.adapter.out.persistence.entity.SilaboEvaluacionEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoCursoEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoCursoHorarioEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEntity;
+import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEvaluacionEntity;
 import com.trackademy.adapter.out.persistence.repository.CursoPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.PeriodoEventoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.PeriodoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.SilaboEvaluacionPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.SilaboPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoCursoHorarioPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoCursoPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoEvaluacionPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoPanacheRepository;
 import com.trackademy.application.port.out.MeQueryPort;
+import com.trackademy.domain.model.me.MiCalendarioEvento;
 import com.trackademy.domain.model.me.MiCurso;
+import com.trackademy.domain.model.me.MiDashboardResumen;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
 import com.trackademy.domain.model.me.MiHorarioCurso;
 import com.trackademy.domain.model.me.MiPeriodoActual;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -38,8 +49,10 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
     private final UsuarioPeriodoPanacheRepository usuarioPeriodoRepository;
     private final UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository;
     private final UsuarioPeriodoCursoHorarioPanacheRepository usuarioPeriodoCursoHorarioRepository;
+    private final UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository;
     private final CursoPanacheRepository cursoRepository;
     private final PeriodoPanacheRepository periodoRepository;
+    private final PeriodoEventoPanacheRepository periodoEventoRepository;
     private final SilaboPanacheRepository silaboRepository;
     private final SilaboEvaluacionPanacheRepository silaboEvaluacionRepository;
 
@@ -48,8 +61,10 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
             UsuarioPeriodoPanacheRepository usuarioPeriodoRepository,
             UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository,
             UsuarioPeriodoCursoHorarioPanacheRepository usuarioPeriodoCursoHorarioRepository,
+            UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository,
             CursoPanacheRepository cursoRepository,
             PeriodoPanacheRepository periodoRepository,
+            PeriodoEventoPanacheRepository periodoEventoRepository,
             SilaboPanacheRepository silaboRepository,
             SilaboEvaluacionPanacheRepository silaboEvaluacionRepository
     ) {
@@ -57,65 +72,170 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
         this.usuarioPeriodoRepository = usuarioPeriodoRepository;
         this.usuarioPeriodoCursoRepository = usuarioPeriodoCursoRepository;
         this.usuarioPeriodoCursoHorarioRepository = usuarioPeriodoCursoHorarioRepository;
+        this.usuarioPeriodoEvaluacionRepository = usuarioPeriodoEvaluacionRepository;
         this.cursoRepository = cursoRepository;
         this.periodoRepository = periodoRepository;
+        this.periodoEventoRepository = periodoEventoRepository;
         this.silaboRepository = silaboRepository;
         this.silaboEvaluacionRepository = silaboEvaluacionRepository;
     }
 
     @Override
     public Optional<MiPeriodoActual> obtenerPeriodoActual(String email) {
+        return obtenerContexto(email).map(this::toPeriodoActual);
+    }
+
+    @Override
+    public Optional<MiDashboardResumen> obtenerDashboard(String email) {
+        Optional<ContextoActual> contextoOpt = obtenerContexto(email);
+        if (contextoOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ContextoActual contexto = contextoOpt.get();
+        List<MiEvaluacionCurso> evaluaciones = construirEvaluaciones(contexto, null);
+        List<MiHorarioCurso> horarios = construirHorarios(contexto);
+        LocalDate hoy = LocalDate.now();
+        List<MiCalendarioEvento> calendario = construirCalendario(contexto, hoy, hoy.plusDays(30));
+
+        List<MiEvaluacionCurso> proximasEvaluaciones = evaluaciones.stream()
+                .filter(item -> item.fechaEstimada() != null && !item.fechaEstimada().isBefore(hoy))
+                .sorted(Comparator.comparing(MiEvaluacionCurso::fechaEstimada))
+                .limit(6)
+                .toList();
+
+        List<MiCalendarioEvento> proximasSesiones = calendario.stream()
+                .filter(item -> "horario".equals(item.origen()))
+                .sorted(Comparator.comparing(MiCalendarioEvento::inicio))
+                .limit(6)
+                .toList();
+
+        List<MiCalendarioEvento> proximosEventosPeriodo = calendario.stream()
+                .filter(item -> "periodo".equals(item.origen()))
+                .sorted(Comparator.comparing(MiCalendarioEvento::inicio))
+                .limit(6)
+                .toList();
+
+        long notasRegistradas = evaluaciones.stream().filter(item -> item.nota() != null).count();
+        long evaluacionesPendientes = evaluaciones.stream().filter(item -> item.nota() == null).count();
+        long cursosActivos = contexto.upcs().stream().filter(upc -> Boolean.TRUE.equals(upc.activo)).count();
+        long horariosRegistrados = horarios.size();
+
+        return Optional.of(new MiDashboardResumen(
+                toPeriodoActual(contexto),
+                calcularSemanaActual(contexto.periodo()),
+                calcularProgresoPeriodo(contexto.periodo()),
+                cursosActivos,
+                horariosRegistrados,
+                evaluacionesPendientes,
+                notasRegistradas,
+                proximasEvaluaciones,
+                proximasSesiones,
+                proximosEventosPeriodo
+        ));
+    }
+
+    @Override
+    public List<MiCurso> listarMisCursos(String email) {
+        return obtenerContexto(email)
+                .map(this::construirCursos)
+                .orElse(Collections.emptyList());
+    }
+
+    @Override
+    public List<MiHorarioCurso> listarMisHorarios(String email) {
+        return obtenerContexto(email)
+                .map(this::construirHorarios)
+                .orElse(Collections.emptyList());
+    }
+
+    @Override
+    public List<MiEvaluacionCurso> listarMisEvaluaciones(String email, Long cursoId) {
+        return obtenerContexto(email)
+                .map(contexto -> construirEvaluaciones(contexto, cursoId))
+                .orElse(Collections.emptyList());
+    }
+
+    @Override
+    public List<MiCalendarioEvento> listarCalendario(String email, LocalDate from, LocalDate to) {
+        Optional<ContextoActual> contextoOpt = obtenerContexto(email);
+        if (contextoOpt.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        ContextoActual contexto = contextoOpt.get();
+        LocalDate inicio = from != null ? from : fechaInicioPorDefecto(contexto.periodo());
+        LocalDate fin = to != null ? to : inicio.plusDays(30);
+        if (fin.isBefore(inicio)) {
+            LocalDate swap = inicio;
+            inicio = fin;
+            fin = swap;
+        }
+
+        return construirCalendario(contexto, inicio, fin);
+    }
+
+    private Optional<ContextoActual> obtenerContexto(String email) {
         Optional<UsuarioEntity> usuarioOpt = usuarioRepository.buscarPorEmail(email);
         if (usuarioOpt.isEmpty()) {
             return Optional.empty();
         }
 
         Optional<UsuarioPeriodoEntity> usuarioPeriodoOpt = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuarioOpt.get().id);
-        return usuarioPeriodoOpt.map(up -> {
-            PeriodoEntity periodo = periodoRepository.findById(up.periodoId);
-            return new MiPeriodoActual(
-                    up.usuarioId,
-                    up.id,
-                    up.periodoId,
-                    up.campusId,
-                    up.carreraId,
-                    up.cicloActual,
-                    up.onboardingEstado,
-                    up.onboardingCompletadoAt,
-                    up.metaPromedioCiclo,
-                    up.horasEstudioSemanaObjetivo,
-                    periodo == null ? null : periodo.etiqueta,
-                    periodo == null ? null : periodo.fechaInicio,
-                    periodo == null ? null : periodo.fechaFin
-            );
-        });
+        if (usuarioPeriodoOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        UsuarioPeriodoEntity usuarioPeriodo = usuarioPeriodoOpt.get();
+        PeriodoEntity periodo = periodoRepository.findById(usuarioPeriodo.periodoId);
+        List<UsuarioPeriodoCursoEntity> upcs = usuarioPeriodoCursoRepository.listarPorUsuarioPeriodo(usuarioPeriodo.id);
+
+        Map<Long, CursoEntity> cursoById = new HashMap<>();
+        if (!upcs.isEmpty()) {
+            List<Long> cursoIds = upcs.stream().map(item -> item.cursoId).toList();
+            for (CursoEntity curso : cursoRepository.listarPorIds(cursoIds)) {
+                cursoById.put(curso.id, curso);
+            }
+        }
+
+        Map<Long, List<UsuarioPeriodoCursoHorarioEntity>> horariosByUpc = new HashMap<>();
+        Map<String, UsuarioPeriodoEvaluacionEntity> evaluacionesByKey = new HashMap<>();
+        if (!upcs.isEmpty()) {
+            List<Long> upcIds = upcs.stream().map(item -> item.id).toList();
+            for (UsuarioPeriodoCursoHorarioEntity horario : usuarioPeriodoCursoHorarioRepository.listarPorUsuarioPeriodoCursos(upcIds)) {
+                horariosByUpc.computeIfAbsent(horario.usuarioPeriodoCursoId, key -> new ArrayList<>()).add(horario);
+            }
+            for (UsuarioPeriodoEvaluacionEntity evaluacion : usuarioPeriodoEvaluacionRepository.listarPorUsuarioPeriodoCursos(upcIds)) {
+                evaluacionesByKey.put(evaluationKey(evaluacion.usuarioPeriodoCursoId, evaluacion.codigo), evaluacion);
+            }
+        }
+
+        return Optional.of(new ContextoActual(usuarioOpt.get(), usuarioPeriodo, periodo, upcs, cursoById, horariosByUpc, evaluacionesByKey));
     }
 
-    @Override
-    public List<MiCurso> listarMisCursos(String email) {
-        Optional<UsuarioEntity> usuarioOpt = usuarioRepository.buscarPorEmail(email);
-        if (usuarioOpt.isEmpty()) {
-            return Collections.emptyList();
-        }
+    private MiPeriodoActual toPeriodoActual(ContextoActual contexto) {
+        UsuarioPeriodoEntity up = contexto.usuarioPeriodo();
+        PeriodoEntity periodo = contexto.periodo();
+        return new MiPeriodoActual(
+                up.usuarioId,
+                up.id,
+                up.periodoId,
+                up.campusId,
+                up.carreraId,
+                up.cicloActual,
+                up.onboardingEstado,
+                up.onboardingCompletadoAt,
+                up.metaPromedioCiclo,
+                up.horasEstudioSemanaObjetivo,
+                periodo == null ? null : periodo.etiqueta,
+                periodo == null ? null : periodo.fechaInicio,
+                periodo == null ? null : periodo.fechaFin
+        );
+    }
 
-        Optional<UsuarioPeriodoEntity> usuarioPeriodoOpt = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuarioOpt.get().id);
-        if (usuarioPeriodoOpt.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<UsuarioPeriodoCursoEntity> upcs = usuarioPeriodoCursoRepository.listarPorUsuarioPeriodo(usuarioPeriodoOpt.get().id);
-        if (upcs.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<Long> cursoIds = upcs.stream().map(x -> x.cursoId).toList();
-        Map<Long, CursoEntity> cursoById = new HashMap<>();
-        for (CursoEntity c : cursoRepository.listarPorIds(cursoIds)) {
-            cursoById.put(c.id, c);
-        }
-
-        return upcs.stream().map(upc -> {
-            CursoEntity c = cursoById.get(upc.cursoId);
+    private List<MiCurso> construirCursos(ContextoActual contexto) {
+        return contexto.upcs().stream().map(upc -> {
+            CursoEntity c = contexto.cursoById().get(upc.cursoId);
             return new MiCurso(
                     upc.id,
                     upc.cursoId,
@@ -130,100 +250,41 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
         }).toList();
     }
 
-    @Override
-    public List<MiHorarioCurso> listarMisHorarios(String email) {
-        Optional<UsuarioEntity> usuarioOpt = usuarioRepository.buscarPorEmail(email);
-        if (usuarioOpt.isEmpty()) {
-            return Collections.emptyList();
+    private List<MiHorarioCurso> construirHorarios(ContextoActual contexto) {
+        List<MiHorarioCurso> horarios = new ArrayList<>();
+        for (UsuarioPeriodoCursoEntity upc : contexto.upcs()) {
+            CursoEntity curso = contexto.cursoById().get(upc.cursoId);
+            for (UsuarioPeriodoCursoHorarioEntity horario : contexto.horariosByUpc().getOrDefault(upc.id, List.of())) {
+                horarios.add(new MiHorarioCurso(
+                        horario.usuarioPeriodoCursoId,
+                        upc.cursoId,
+                        curso == null ? null : curso.codigo,
+                        curso == null ? null : curso.nombre,
+                        curso == null ? null : curso.modalidad,
+                        horario.bloqueNro,
+                        horario.diaSemana,
+                        horario.horaInicio,
+                        horario.horaFin,
+                        horario.duracionMin,
+                        horario.tipoSesion,
+                        horario.ubicacion,
+                        horario.urlVirtual
+                ));
+            }
         }
-
-        Optional<UsuarioPeriodoEntity> usuarioPeriodoOpt = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuarioOpt.get().id);
-        if (usuarioPeriodoOpt.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<UsuarioPeriodoCursoEntity> upcs = usuarioPeriodoCursoRepository.listarPorUsuarioPeriodo(usuarioPeriodoOpt.get().id);
-        if (upcs.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<Long> upcIds = upcs.stream().map(x -> x.id).toList();
-        List<UsuarioPeriodoCursoHorarioEntity> horarios = usuarioPeriodoCursoHorarioRepository.listarPorUsuarioPeriodoCursos(upcIds);
-        if (horarios.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        Map<Long, UsuarioPeriodoCursoEntity> upcById = new HashMap<>();
-        for (UsuarioPeriodoCursoEntity upc : upcs) {
-            upcById.put(upc.id, upc);
-        }
-
-        List<Long> cursoIds = upcs.stream().map(x -> x.cursoId).toList();
-        Map<Long, CursoEntity> cursoById = new HashMap<>();
-        for (CursoEntity c : cursoRepository.listarPorIds(cursoIds)) {
-            cursoById.put(c.id, c);
-        }
-
-        return horarios.stream().map(h -> {
-            UsuarioPeriodoCursoEntity upc = upcById.get(h.usuarioPeriodoCursoId);
-            CursoEntity c = upc == null ? null : cursoById.get(upc.cursoId);
-            return new MiHorarioCurso(
-                    h.usuarioPeriodoCursoId,
-                    upc == null ? null : upc.cursoId,
-                    c == null ? null : c.codigo,
-                    c == null ? null : c.nombre,
-                    c == null ? null : c.modalidad,
-                    h.bloqueNro,
-                    h.diaSemana,
-                    h.horaInicio,
-                    h.horaFin,
-                    h.duracionMin,
-                    h.tipoSesion,
-                    h.ubicacion,
-                    h.urlVirtual
-            );
-        }).toList();
+        return horarios;
     }
 
-    @Override
-    public List<MiEvaluacionCurso> listarMisEvaluaciones(String email, Long cursoId) {
-        Optional<UsuarioEntity> usuarioOpt = usuarioRepository.buscarPorEmail(email);
-        if (usuarioOpt.isEmpty()) {
-            return Collections.emptyList();
-        }
+    private List<MiEvaluacionCurso> construirEvaluaciones(ContextoActual contexto, Long cursoId) {
+        List<MiEvaluacionCurso> evaluaciones = new ArrayList<>();
 
-        Optional<UsuarioPeriodoEntity> usuarioPeriodoOpt = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuarioOpt.get().id);
-        if (usuarioPeriodoOpt.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        UsuarioPeriodoEntity usuarioPeriodo = usuarioPeriodoOpt.get();
-        PeriodoEntity periodo = periodoRepository.findById(usuarioPeriodo.periodoId);
-
-        List<UsuarioPeriodoCursoEntity> upcs = usuarioPeriodoCursoRepository.listarPorUsuarioPeriodo(usuarioPeriodo.id);
+        List<UsuarioPeriodoCursoEntity> upcs = contexto.upcs();
         if (cursoId != null) {
             upcs = upcs.stream().filter(upc -> upc.cursoId != null && upc.cursoId.equals(cursoId)).toList();
         }
-        if (upcs.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<Long> cursoIds = upcs.stream().map(x -> x.cursoId).toList();
-        Map<Long, CursoEntity> cursoById = new HashMap<>();
-        for (CursoEntity c : cursoRepository.listarPorIds(cursoIds)) {
-            cursoById.put(c.id, c);
-        }
-
-        Map<Long, List<UsuarioPeriodoCursoHorarioEntity>> horariosByUpc = new HashMap<>();
-        List<Long> upcIds = upcs.stream().map(x -> x.id).toList();
-        for (UsuarioPeriodoCursoHorarioEntity h : usuarioPeriodoCursoHorarioRepository.listarPorUsuarioPeriodoCursos(upcIds)) {
-            horariosByUpc.computeIfAbsent(h.usuarioPeriodoCursoId, key -> new java.util.ArrayList<>()).add(h);
-        }
-
-        List<MiEvaluacionCurso> evaluaciones = new java.util.ArrayList<>();
 
         for (UsuarioPeriodoCursoEntity upc : upcs) {
-            CursoEntity curso = cursoById.get(upc.cursoId);
+            CursoEntity curso = contexto.cursoById().get(upc.cursoId);
             Optional<SilaboEntity> silaboOpt = silaboRepository.buscarVigentePorCursoId(upc.cursoId);
             if (silaboOpt.isEmpty()) {
                 continue;
@@ -234,41 +295,36 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
                 continue;
             }
 
-            LocalDate fechaInicio = periodo == null ? null : periodo.fechaInicio;
+            Short diaPreferido = contexto.horariosByUpc().getOrDefault(upc.id, List.of()).stream()
+                    .map(horario -> horario.diaSemana)
+                    .filter(dia -> dia != null)
+                    .min(Comparator.naturalOrder())
+                    .orElse(null);
 
-            Short diaPreferido = null;
-            List<UsuarioPeriodoCursoHorarioEntity> horariosCurso = horariosByUpc.getOrDefault(upc.id, List.of());
-            if (!horariosCurso.isEmpty()) {
-                diaPreferido = horariosCurso.stream()
-                        .map(h -> h.diaSemana)
-                        .filter(dia -> dia != null)
-                        .min(Comparator.naturalOrder())
-                        .orElse(null);
-            }
-
-            for (SilaboEvaluacionEntity eval : evaluacionesSilabo) {
-                LocalDate fechaEstimada = null;
-                if (fechaInicio != null && eval.semana != null) {
-                    LocalDate inicioSemana = fechaInicio.plusDays((long) (eval.semana - 1) * 7L);
-                    if (diaPreferido != null) {
-                        fechaEstimada = inicioSemana.plusDays(diaPreferido - 1L);
-                    } else {
-                        fechaEstimada = inicioSemana;
-                    }
-                }
+            for (SilaboEvaluacionEntity evaluacionSilabo : evaluacionesSilabo) {
+                UsuarioPeriodoEvaluacionEntity evaluacionGuardada = contexto.evaluacionesByKey().get(evaluationKey(upc.id, evaluacionSilabo.codigo));
+                LocalDate fechaEstimada = evaluacionGuardada != null && evaluacionGuardada.fechaEstimada != null
+                        ? evaluacionGuardada.fechaEstimada
+                        : construirFechaEstimada(contexto.periodo(), evaluacionSilabo.semana, diaPreferido);
 
                 evaluaciones.add(new MiEvaluacionCurso(
+                        evaluacionGuardada == null ? null : evaluacionGuardada.id,
                         upc.id,
                         upc.cursoId,
                         curso == null ? null : curso.codigo,
                         curso == null ? null : curso.nombre,
-                        eval.codigo,
-                        eval.tipo,
-                        eval.descripcion,
-                        eval.porcentaje,
-                        eval.semana,
+                        evaluacionSilabo.codigo,
+                        evaluacionSilabo.tipo,
+                        evaluacionSilabo.descripcion,
+                        evaluacionSilabo.porcentaje,
+                        evaluacionGuardada != null && evaluacionGuardada.semana != null ? evaluacionGuardada.semana : evaluacionSilabo.semana,
                         fechaEstimada,
-                        eval.observacion
+                        evaluacionGuardada == null ? null : evaluacionGuardada.fechaReal,
+                        evaluacionGuardada == null ? null : evaluacionGuardada.nota,
+                        evaluacionGuardada == null ? Boolean.FALSE : evaluacionGuardada.exonerado,
+                        evaluacionGuardada == null ? Boolean.FALSE : evaluacionGuardada.esRezagado,
+                        evaluacionSilabo.observacion,
+                        evaluacionGuardada == null ? null : evaluacionGuardada.comentarios
                 ));
             }
         }
@@ -277,7 +333,151 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
                 .comparing(MiEvaluacionCurso::fechaEstimada, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(MiEvaluacionCurso::semana, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(MiEvaluacionCurso::evaluacionCodigo, Comparator.nullsLast(Comparator.naturalOrder())));
-
         return evaluaciones;
+    }
+
+    private List<MiCalendarioEvento> construirCalendario(ContextoActual contexto, LocalDate from, LocalDate to) {
+        List<MiCalendarioEvento> eventos = new ArrayList<>();
+
+        if (contexto.periodo() != null) {
+            for (PeriodoEventoEntity evento : periodoEventoRepository.listarPorPeriodo(contexto.periodo().id)) {
+                LocalDate fechaFin = evento.fechaFin == null ? evento.fechaInicio : evento.fechaFin;
+                if (fechaFin.isBefore(from) || evento.fechaInicio.isAfter(to)) {
+                    continue;
+                }
+                eventos.add(new MiCalendarioEvento(
+                        "periodo",
+                        evento.tipo,
+                        evento.titulo,
+                        evento.descripcion,
+                        evento.fechaInicio.atStartOfDay(),
+                        fechaFin.atTime(23, 59),
+                        true,
+                        null,
+                        null,
+                        null,
+                        null,
+                        evento.tipo
+                ));
+            }
+        }
+
+        for (MiEvaluacionCurso evaluacion : construirEvaluaciones(contexto, null)) {
+            if (evaluacion.fechaEstimada() == null || evaluacion.fechaEstimada().isBefore(from) || evaluacion.fechaEstimada().isAfter(to)) {
+                continue;
+            }
+            eventos.add(new MiCalendarioEvento(
+                    "evaluacion",
+                    evaluacion.evaluacionCodigo(),
+                    evaluacion.descripcion() != null ? evaluacion.descripcion() : evaluacion.evaluacionCodigo(),
+                    evaluacion.nombreCurso(),
+                    evaluacion.fechaEstimada().atStartOfDay(),
+                    evaluacion.fechaEstimada().atTime(23, 59),
+                    true,
+                    evaluacion.usuarioPeriodoCursoId(),
+                    evaluacion.cursoId(),
+                    evaluacion.codigoCurso(),
+                    evaluacion.nombreCurso(),
+                    evaluacion.evaluacionCodigo()
+            ));
+        }
+
+        if (contexto.periodo() != null && contexto.periodo().fechaInicio != null && contexto.periodo().fechaFin != null) {
+            LocalDate start = from.isBefore(contexto.periodo().fechaInicio) ? contexto.periodo().fechaInicio : from;
+            LocalDate end = to.isAfter(contexto.periodo().fechaFin) ? contexto.periodo().fechaFin : to;
+            if (!end.isBefore(start)) {
+                for (MiHorarioCurso horario : construirHorarios(contexto)) {
+                    if (horario.diaSemana() == null || horario.horaInicio() == null || horario.horaFin() == null) {
+                        continue;
+                    }
+                    LocalDate primeraFecha = alinearFecha(start, horario.diaSemana());
+                    for (LocalDate fecha = primeraFecha; !fecha.isAfter(end); fecha = fecha.plusWeeks(1)) {
+                        eventos.add(new MiCalendarioEvento(
+                                "horario",
+                                horario.tipoSesion(),
+                                horario.nombre(),
+                                horario.tipoSesion(),
+                                LocalDateTime.of(fecha, horario.horaInicio()),
+                                LocalDateTime.of(fecha, horario.horaFin()),
+                                false,
+                                horario.usuarioPeriodoCursoId(),
+                                horario.cursoId(),
+                                horario.codigo(),
+                                horario.nombre(),
+                                horario.tipoSesion()
+                        ));
+                    }
+                }
+            }
+        }
+
+        eventos.sort(Comparator.comparing(MiCalendarioEvento::inicio));
+        return eventos;
+    }
+
+    private LocalDate fechaInicioPorDefecto(PeriodoEntity periodo) {
+        if (periodo != null && periodo.fechaInicio != null) {
+            return periodo.fechaInicio;
+        }
+        return LocalDate.now().withDayOfMonth(1);
+    }
+
+    private Integer calcularSemanaActual(PeriodoEntity periodo) {
+        if (periodo == null || periodo.fechaInicio == null) {
+            return null;
+        }
+        long diff = java.time.temporal.ChronoUnit.DAYS.between(periodo.fechaInicio, LocalDate.now());
+        if (diff < 0) {
+            return 0;
+        }
+        return (int) (diff / 7) + 1;
+    }
+
+    private Integer calcularProgresoPeriodo(PeriodoEntity periodo) {
+        if (periodo == null || periodo.fechaInicio == null || periodo.fechaFin == null) {
+            return null;
+        }
+        long total = java.time.temporal.ChronoUnit.DAYS.between(periodo.fechaInicio, periodo.fechaFin);
+        if (total <= 0) {
+            return 0;
+        }
+        long elapsed = java.time.temporal.ChronoUnit.DAYS.between(periodo.fechaInicio, LocalDate.now());
+        elapsed = Math.max(0, Math.min(elapsed, total));
+        return (int) Math.round((elapsed * 100.0) / total);
+    }
+
+    private LocalDate construirFechaEstimada(PeriodoEntity periodo, Integer semana, Short diaPreferido) {
+        if (periodo == null || periodo.fechaInicio == null || semana == null) {
+            return null;
+        }
+        LocalDate inicioSemana = periodo.fechaInicio.plusDays((long) (semana - 1) * 7L);
+        if (diaPreferido == null) {
+            return inicioSemana;
+        }
+        return inicioSemana.plusDays(diaPreferido - 1L);
+    }
+
+    private LocalDate alinearFecha(LocalDate from, Short diaSemana) {
+        DayOfWeek target = DayOfWeek.of(diaSemana);
+        int diff = target.getValue() - from.getDayOfWeek().getValue();
+        if (diff < 0) {
+            diff += 7;
+        }
+        return from.plusDays(diff);
+    }
+
+    private String evaluationKey(Long usuarioPeriodoCursoId, String codigo) {
+        return usuarioPeriodoCursoId + "::" + codigo;
+    }
+
+    private record ContextoActual(
+            UsuarioEntity usuario,
+            UsuarioPeriodoEntity usuarioPeriodo,
+            PeriodoEntity periodo,
+            List<UsuarioPeriodoCursoEntity> upcs,
+            Map<Long, CursoEntity> cursoById,
+            Map<Long, List<UsuarioPeriodoCursoHorarioEntity>> horariosByUpc,
+            Map<String, UsuarioPeriodoEvaluacionEntity> evaluacionesByKey
+    ) {
     }
 }
