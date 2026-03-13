@@ -5,12 +5,14 @@ import com.trackademy.adapter.out.persistence.entity.PeriodoEntity;
 import com.trackademy.adapter.out.persistence.entity.PeriodoEventoEntity;
 import com.trackademy.adapter.out.persistence.entity.SilaboEntity;
 import com.trackademy.adapter.out.persistence.entity.SilaboEvaluacionEntity;
+import com.trackademy.adapter.out.persistence.entity.CalendarSyncAccountEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoCursoEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoCursoHorarioEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEvaluacionEntity;
 import com.trackademy.adapter.out.persistence.repository.CursoPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.CalendarSyncAccountPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.PeriodoEventoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.PeriodoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.SilaboEvaluacionPanacheRepository;
@@ -22,6 +24,7 @@ import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoEvaluacio
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoPanacheRepository;
 import com.trackademy.application.port.out.MeQueryPort;
 import com.trackademy.domain.model.me.MiCalendarioEvento;
+import com.trackademy.domain.model.me.MiCalendarSyncAccount;
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiDashboardResumen;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
@@ -46,6 +49,7 @@ import java.util.Optional;
 public class PostgresMeQueryAdapter implements MeQueryPort {
 
     private final UsuarioPanacheRepository usuarioRepository;
+    private final CalendarSyncAccountPanacheRepository calendarSyncAccountRepository;
     private final UsuarioPeriodoPanacheRepository usuarioPeriodoRepository;
     private final UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository;
     private final UsuarioPeriodoCursoHorarioPanacheRepository usuarioPeriodoCursoHorarioRepository;
@@ -58,6 +62,7 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
 
     public PostgresMeQueryAdapter(
             UsuarioPanacheRepository usuarioRepository,
+            CalendarSyncAccountPanacheRepository calendarSyncAccountRepository,
             UsuarioPeriodoPanacheRepository usuarioPeriodoRepository,
             UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository,
             UsuarioPeriodoCursoHorarioPanacheRepository usuarioPeriodoCursoHorarioRepository,
@@ -69,6 +74,7 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
             SilaboEvaluacionPanacheRepository silaboEvaluacionRepository
     ) {
         this.usuarioRepository = usuarioRepository;
+        this.calendarSyncAccountRepository = calendarSyncAccountRepository;
         this.usuarioPeriodoRepository = usuarioPeriodoRepository;
         this.usuarioPeriodoCursoRepository = usuarioPeriodoCursoRepository;
         this.usuarioPeriodoCursoHorarioRepository = usuarioPeriodoCursoHorarioRepository;
@@ -173,6 +179,24 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
         }
 
         return construirCalendario(contexto, inicio, fin);
+    }
+
+    @Override
+    public List<MiCalendarSyncAccount> listarSincronizacionesCalendario(String email) {
+        Optional<UsuarioEntity> usuarioOpt = usuarioRepository.buscarPorEmail(email);
+        if (usuarioOpt.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<String, CalendarSyncAccountEntity> accountsByProvider = new HashMap<>();
+        for (CalendarSyncAccountEntity entity : calendarSyncAccountRepository.listarPorUsuario(usuarioOpt.get().id)) {
+            accountsByProvider.put(entity.provider, entity);
+        }
+
+        List<MiCalendarSyncAccount> accounts = new ArrayList<>();
+        accounts.add(toCalendarSyncAccount("google", accountsByProvider.get("google")));
+        accounts.add(toCalendarSyncAccount("microsoft", accountsByProvider.get("microsoft")));
+        return accounts;
     }
 
     private Optional<ContextoActual> obtenerContexto(String email) {
@@ -471,6 +495,30 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
 
     private String evaluationKey(Long usuarioPeriodoCursoId, String codigo) {
         return usuarioPeriodoCursoId + "::" + codigo;
+    }
+
+    private MiCalendarSyncAccount toCalendarSyncAccount(String provider, CalendarSyncAccountEntity entity) {
+        if (entity == null) {
+            return new MiCalendarSyncAccount(
+                    provider,
+                    false,
+                    null,
+                    null,
+                    "bidirectional",
+                    "pending",
+                    null
+            );
+        }
+
+        return new MiCalendarSyncAccount(
+                provider,
+                true,
+                entity.email,
+                entity.calendarId,
+                entity.syncDirection,
+                entity.estado,
+                entity.lastSyncAt
+        );
     }
 
     private record ContextoActual(

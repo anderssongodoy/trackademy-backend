@@ -3,6 +3,7 @@ package com.trackademy.application.service;
 import com.trackademy.application.port.in.MeQueryUseCase;
 import com.trackademy.application.port.out.MeQueryPort;
 import com.trackademy.domain.model.me.MiCalendarioEvento;
+import com.trackademy.domain.model.me.MiCalendarSyncAccount;
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiDashboardResumen;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
@@ -51,5 +52,10 @@ public class MeQueryService implements MeQueryUseCase {
     @Override
     public List<MiCalendarioEvento> listarCalendario(String email, LocalDate from, LocalDate to) {
         return meQueryPort.listarCalendario(email, from, to);
+    }
+
+    @Override
+    public List<MiCalendarSyncAccount> listarSincronizacionesCalendario(String email) {
+        return meQueryPort.listarSincronizacionesCalendario(email);
     }
 }

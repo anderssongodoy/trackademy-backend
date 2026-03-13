@@ -7,6 +7,7 @@ import com.trackademy.adapter.in.rest.dto.ActualizarDatosCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiCalendarioEventoResponse;
+import com.trackademy.adapter.in.rest.dto.MiCalendarSyncAccountResponse;
 import com.trackademy.adapter.in.rest.dto.MiCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiDashboardResponse;
 import com.trackademy.adapter.in.rest.dto.MiEvaluacionCursoResponse;
@@ -192,6 +193,21 @@ public class MeResource {
                 .toList();
 
         return Response.ok(eventos).build();
+    }
+
+    @GET
+    @Path("/calendar-sync-accounts")
+    public Response misSincronizacionesCalendario(@HeaderParam("Authorization") String authorization) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        List<MiCalendarSyncAccountResponse> accounts = meQueryUseCase.listarSincronizacionesCalendario(principal.get().email()).stream()
+                .map(MiCalendarSyncAccountResponse::from)
+                .toList();
+
+        return Response.ok(accounts).build();
     }
 
     @PUT

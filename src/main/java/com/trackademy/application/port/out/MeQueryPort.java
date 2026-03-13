@@ -1,6 +1,7 @@
 package com.trackademy.application.port.out;
 
 import com.trackademy.domain.model.me.MiCalendarioEvento;
+import com.trackademy.domain.model.me.MiCalendarSyncAccount;
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiDashboardResumen;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
@@ -24,4 +25,6 @@ public interface MeQueryPort {
     List<MiEvaluacionCurso> listarMisEvaluaciones(String email, Long cursoId);
 
     List<MiCalendarioEvento> listarCalendario(String email, LocalDate from, LocalDate to);
+
+    List<MiCalendarSyncAccount> listarSincronizacionesCalendario(String email);
 }
