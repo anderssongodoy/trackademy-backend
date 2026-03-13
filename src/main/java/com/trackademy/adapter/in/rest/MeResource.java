@@ -1,5 +1,6 @@
 package com.trackademy.adapter.in.rest;
 
+import com.trackademy.adapter.in.rest.dto.ActualizarPerfilAcademicoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarDatosCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoResponse;
@@ -55,6 +56,28 @@ public class MeResource {
                 .map(Response::ok)
                 .orElse(Response.status(Response.Status.NOT_FOUND))
                 .build();
+    }
+
+    @PUT
+    @Path("/periodo-actual")
+    public Response actualizarPerfilAcademico(
+            @HeaderParam("Authorization") String authorization,
+            ActualizarPerfilAcademicoRequest request
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        try {
+            return Response.ok(
+                    MiPeriodoActualResponse.from(
+                            meCommandUseCase.actualizarPerfilAcademico(principal.get().email(), request.toCommand())
+                    )
+            ).build();
+        } catch (IllegalArgumentException ex) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
+        }
     }
 
     @GET

@@ -19,15 +19,18 @@ import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoCursoPana
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoEvaluacionPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoPanacheRepository;
 import com.trackademy.application.port.out.MeCommandPort;
+import com.trackademy.domain.model.me.ActualizarPerfilAcademicoCommand;
 import com.trackademy.domain.model.me.ActualizarDatosCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoResult;
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
+import com.trackademy.domain.model.me.MiPeriodoActual;
 import com.trackademy.domain.model.me.RegistrarNotaEvaluacionCommand;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Comparator;
@@ -67,6 +70,47 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         this.silaboRepository = silaboRepository;
         this.silaboEvaluacionRepository = silaboEvaluacionRepository;
         this.periodoRepository = periodoRepository;
+    }
+
+    @Override
+    @Transactional
+    public MiPeriodoActual actualizarPerfilAcademico(String email, ActualizarPerfilAcademicoCommand command) {
+        if (command == null) {
+            throw new IllegalArgumentException("No llegaron datos para actualizar el perfil.");
+        }
+        if (command.metaPromedioCiclo() == null || command.metaPromedioCiclo().compareTo(BigDecimal.ZERO) < 0 || command.metaPromedioCiclo().compareTo(BigDecimal.valueOf(20)) > 0) {
+            throw new IllegalArgumentException("La meta de promedio debe estar entre 0 y 20.");
+        }
+        if (command.horasEstudioSemanaObjetivo() == null || command.horasEstudioSemanaObjetivo() < 1 || command.horasEstudioSemanaObjetivo() > 80) {
+            throw new IllegalArgumentException("Las horas objetivo deben estar entre 1 y 80.");
+        }
+
+        UsuarioEntity usuario = usuarioRepository.buscarPorEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos el usuario autenticado."));
+
+        UsuarioPeriodoEntity usuarioPeriodo = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuario.id)
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos un periodo activo para el usuario."));
+
+        usuarioPeriodo.metaPromedioCiclo = command.metaPromedioCiclo();
+        usuarioPeriodo.horasEstudioSemanaObjetivo = command.horasEstudioSemanaObjetivo();
+
+        PeriodoEntity periodo = periodoRepository.findById(usuarioPeriodo.periodoId);
+
+        return new MiPeriodoActual(
+                usuario.id,
+                usuarioPeriodo.id,
+                usuarioPeriodo.periodoId,
+                usuarioPeriodo.campusId,
+                usuarioPeriodo.carreraId,
+                usuarioPeriodo.cicloActual,
+                usuarioPeriodo.onboardingEstado,
+                usuarioPeriodo.onboardingCompletadoAt,
+                usuarioPeriodo.metaPromedioCiclo,
+                usuarioPeriodo.horasEstudioSemanaObjetivo,
+                periodo != null ? periodo.etiqueta : null,
+                periodo != null ? periodo.fechaInicio : null,
+                periodo != null ? periodo.fechaFin : null
+        );
     }
 
     @Override
