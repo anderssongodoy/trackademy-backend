@@ -1,5 +1,6 @@
 package com.trackademy.application.port.out;
 
+import com.trackademy.domain.model.me.ActualizarConfiguracionPeriodoCommand;
 import com.trackademy.domain.model.me.ActualizarPerfilAcademicoCommand;
 import com.trackademy.domain.model.me.ActualizarDatosCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoCommand;
@@ -10,6 +11,8 @@ import com.trackademy.domain.model.me.MiPeriodoActual;
 import com.trackademy.domain.model.me.RegistrarNotaEvaluacionCommand;
 
 public interface MeCommandPort {
+
+    MiPeriodoActual actualizarConfiguracionPeriodo(String email, ActualizarConfiguracionPeriodoCommand command);
 
     MiPeriodoActual actualizarPerfilAcademico(String email, ActualizarPerfilAcademicoCommand command);
 

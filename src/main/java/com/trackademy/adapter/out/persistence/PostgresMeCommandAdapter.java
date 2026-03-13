@@ -16,9 +16,11 @@ import com.trackademy.adapter.out.persistence.repository.SilaboPanacheRepository
 import com.trackademy.adapter.out.persistence.repository.UsuarioPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoCursoHorarioPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoCursoPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoCursoConfianzaPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoEvaluacionPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoPanacheRepository;
 import com.trackademy.application.port.out.MeCommandPort;
+import com.trackademy.domain.model.me.ActualizarConfiguracionPeriodoCommand;
 import com.trackademy.domain.model.me.ActualizarPerfilAcademicoCommand;
 import com.trackademy.domain.model.me.ActualizarDatosCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoCommand;
@@ -45,6 +47,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
     private final UsuarioPeriodoPanacheRepository usuarioPeriodoRepository;
     private final UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository;
     private final UsuarioPeriodoCursoHorarioPanacheRepository horarioRepository;
+    private final UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository;
     private final UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository;
     private final SilaboPanacheRepository silaboRepository;
     private final SilaboEvaluacionPanacheRepository silaboEvaluacionRepository;
@@ -56,6 +59,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
             UsuarioPeriodoPanacheRepository usuarioPeriodoRepository,
             UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository,
             UsuarioPeriodoCursoHorarioPanacheRepository horarioRepository,
+            UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository,
             UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository,
             SilaboPanacheRepository silaboRepository,
             SilaboEvaluacionPanacheRepository silaboEvaluacionRepository,
@@ -66,10 +70,102 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         this.usuarioPeriodoRepository = usuarioPeriodoRepository;
         this.usuarioPeriodoCursoRepository = usuarioPeriodoCursoRepository;
         this.horarioRepository = horarioRepository;
+        this.confianzaRepository = confianzaRepository;
         this.usuarioPeriodoEvaluacionRepository = usuarioPeriodoEvaluacionRepository;
         this.silaboRepository = silaboRepository;
         this.silaboEvaluacionRepository = silaboEvaluacionRepository;
         this.periodoRepository = periodoRepository;
+    }
+
+    @Override
+    @Transactional
+    public MiPeriodoActual actualizarConfiguracionPeriodo(String email, ActualizarConfiguracionPeriodoCommand command) {
+        if (command == null) {
+            throw new IllegalArgumentException("No llegaron datos para reconfigurar el ciclo.");
+        }
+        if (command.campusId() == null) {
+            throw new IllegalArgumentException("Debes elegir un campus.");
+        }
+        if (command.carreraId() == null) {
+            throw new IllegalArgumentException("Debes elegir una carrera.");
+        }
+        if (command.cicloActual() == null || command.cicloActual() < 1 || command.cicloActual() > 12) {
+            throw new IllegalArgumentException("El ciclo actual debe estar entre 1 y 12.");
+        }
+        List<Long> cursoIds = command.cursoIds() == null ? List.of() : command.cursoIds().stream()
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+        if (cursoIds.isEmpty()) {
+            throw new IllegalArgumentException("Debes dejar al menos un curso en este ciclo.");
+        }
+
+        UsuarioEntity usuario = usuarioRepository.buscarPorEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos el usuario autenticado."));
+
+        UsuarioPeriodoEntity usuarioPeriodo = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuario.id)
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos un periodo activo para el usuario."));
+
+        usuarioPeriodo.campusId = command.campusId();
+        usuarioPeriodo.carreraId = command.carreraId();
+        usuarioPeriodo.cicloActual = command.cicloActual();
+
+        List<UsuarioPeriodoCursoEntity> existentes = usuarioPeriodoCursoRepository.listarPorUsuarioPeriodo(usuarioPeriodo.id);
+        List<Long> existentesIds = existentes.stream().map(item -> item.cursoId).toList();
+
+        for (UsuarioPeriodoCursoEntity existente : existentes) {
+            if (cursoIds.contains(existente.cursoId)) {
+                existente.activo = true;
+                existente.estado = "matriculado";
+                if (existente.modalidad == null) {
+                    existente.modalidad = cursoRepository.findByIdOptional(existente.cursoId).map(c -> c.modalidad).orElse(null);
+                }
+                continue;
+            }
+
+            horarioRepository.borrarPorUsuarioPeriodoCurso(existente.id);
+            confianzaRepository.borrarPorUsuarioPeriodoCurso(existente.id);
+            usuarioPeriodoEvaluacionRepository.delete("usuarioPeriodoCursoId", existente.id);
+            usuarioPeriodoCursoRepository.delete(existente);
+        }
+
+        for (Long cursoId : cursoIds) {
+            if (existentesIds.contains(cursoId)) {
+                continue;
+            }
+
+            CursoEntity curso = cursoRepository.findById(cursoId);
+            if (curso == null) {
+                throw new IllegalArgumentException("Uno de los cursos seleccionados ya no existe en catalogo.");
+            }
+
+            UsuarioPeriodoCursoEntity nuevo = new UsuarioPeriodoCursoEntity();
+            nuevo.usuarioPeriodoId = usuarioPeriodo.id;
+            nuevo.cursoId = cursoId;
+            nuevo.estado = "matriculado";
+            nuevo.activo = true;
+            nuevo.origen = "reconfiguracion";
+            nuevo.modalidad = curso.modalidad;
+            usuarioPeriodoCursoRepository.persist(nuevo);
+        }
+
+        PeriodoEntity periodo = periodoRepository.findById(usuarioPeriodo.periodoId);
+
+        return new MiPeriodoActual(
+                usuario.id,
+                usuarioPeriodo.id,
+                usuarioPeriodo.periodoId,
+                usuarioPeriodo.campusId,
+                usuarioPeriodo.carreraId,
+                usuarioPeriodo.cicloActual,
+                usuarioPeriodo.onboardingEstado,
+                usuarioPeriodo.onboardingCompletadoAt,
+                usuarioPeriodo.metaPromedioCiclo,
+                usuarioPeriodo.horasEstudioSemanaObjetivo,
+                periodo != null ? periodo.etiqueta : null,
+                periodo != null ? periodo.fechaInicio : null,
+                periodo != null ? periodo.fechaFin : null
+        );
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.trackademy.adapter.in.rest;
 
+import com.trackademy.adapter.in.rest.dto.ActualizarConfiguracionPeriodoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarPerfilAcademicoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarDatosCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoRequest;
@@ -73,6 +74,28 @@ public class MeResource {
             return Response.ok(
                     MiPeriodoActualResponse.from(
                             meCommandUseCase.actualizarPerfilAcademico(principal.get().email(), request.toCommand())
+                    )
+            ).build();
+        } catch (IllegalArgumentException ex) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
+        }
+    }
+
+    @PUT
+    @Path("/periodo-actual/configuracion")
+    public Response actualizarConfiguracionPeriodo(
+            @HeaderParam("Authorization") String authorization,
+            ActualizarConfiguracionPeriodoRequest request
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        try {
+            return Response.ok(
+                    MiPeriodoActualResponse.from(
+                            meCommandUseCase.actualizarConfiguracionPeriodo(principal.get().email(), request.toCommand())
                     )
             ).build();
         } catch (IllegalArgumentException ex) {
