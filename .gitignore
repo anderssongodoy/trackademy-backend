@@ -48,3 +48,6 @@ nb-configuration.xml
 .service
 
 /ops
+
+# Local Maven cache
+.m2/
