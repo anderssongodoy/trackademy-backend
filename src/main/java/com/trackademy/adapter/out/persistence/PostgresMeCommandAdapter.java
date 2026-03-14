@@ -148,7 +148,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
             nuevo.cursoId = cursoId;
             nuevo.estado = "matriculado";
             nuevo.activo = true;
-            nuevo.origen = "reconfiguracion";
+            nuevo.origen = "onboarding";
             nuevo.modalidad = curso.modalidad;
             usuarioPeriodoCursoRepository.persist(nuevo);
         }
