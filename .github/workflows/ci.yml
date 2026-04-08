@@ -1,7 +1,7 @@
-name: Deploy Production
+name: CI
 
 on:
-  push:
+  pull_request:
     branches:
       - main
   workflow_dispatch:
@@ -45,19 +45,3 @@ jobs:
 
       - name: Run tests
         run: ./mvnw test
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.TRACKADEMY_VPS_HOST }}
-          username: ${{ secrets.TRACKADEMY_VPS_USER }}
-          key: ${{ secrets.TRACKADEMY_VPS_SSH_KEY }}
-          script: |
-            cd /opt/trackademy/trackademy-backend
-            chmod +x ops/deploy-prod.sh
-            ./ops/deploy-prod.sh main
