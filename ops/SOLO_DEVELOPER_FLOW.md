@@ -82,10 +82,7 @@ Al llegar a `main`, GitHub Actions hace:
 
 ## Lo que si recomiendo
 
-- proteger `main`
-- obligar Pull Request
-- exigir checks verdes
-- no trabajar directo en `main`
+Ver [BRANCH_PROTECTION_SETUP.md](./BRANCH_PROTECTION_SETUP.md) para la configuracion detallada de branch protection en GitHub.
 
 ## Cuándo si trabajar directo en `main`
 
@@ -107,4 +104,4 @@ Tu flujo ideal ahora es:
 4. merge a `main`
 5. deploy automatico
 
-- usa este documento como referencia rapida al abrir PRs y validar branch protection.
+- usa este documento como referencia rapida al abrir PRs y para validar branch protection ver [BRANCH_PROTECTION_SETUP.md](./BRANCH_PROTECTION_SETUP.md).
