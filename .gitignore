@@ -49,6 +49,7 @@ nb-configuration.xml
 
 /ops/*
 !/ops/CI_CD_SETUP.md
+!/ops/BRANCH_PROTECTION_SETUP.md
 !/ops/DOCKER_NOTES.md
 !/ops/ENTERPRISE_ROADMAP.md
 !/ops/docker-compose.prod.yml
