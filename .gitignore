@@ -47,7 +47,10 @@ nb-configuration.xml
 
 .service
 
-/ops
+/ops/*
+!/ops/CI_CD_SETUP.md
+!/ops/deploy-prod.sh
+!/ops/trackademy-backend.service
 
 # Local Maven cache
 .m2/
