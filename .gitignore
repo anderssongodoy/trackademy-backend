@@ -52,6 +52,7 @@ nb-configuration.xml
 !/ops/BRANCH_PROTECTION_SETUP.md
 !/ops/DOCKER_NOTES.md
 !/ops/ENTERPRISE_ROADMAP.md
+!/ops/SOLO_DEVELOPER_FLOW.md
 !/ops/docker-compose.prod.yml
 !/ops/deploy-prod.sh
 !/ops/trackademy-backend.service
