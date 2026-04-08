@@ -199,11 +199,31 @@ Ya hecho:
 - `n8n` con dominio y HTTPS
 - `Netdata` publicado con `nginx` y HTTPS
 - documentacion base del VPS
-- CI/CD basico funcionando para `Trackademy`
-- tests automaticos
+- CI/CD funcionando para `Trackademy`
+- tests automaticos en GitHub Actions
 - deploy automatico al VPS
 - acceso SSH dedicado para GitHub Actions
+- backend `Trackademy` corriendo en Docker en produccion
+- deploy de produccion usando Docker
+- health check post-deploy
+- rollback basico de deploy
+- `main` preparada para trabajar con Pull Requests
+- workflow preparado para correr tests en `pull_request` y deploy solo en `push` a `main`
 
-Siguiente foco:
+Estado de fases:
 
-- Fase 1: Dockerizar `Trackademy`
+- Fase 1: completada
+- Fase 2: completada
+- Fase 3: parcialmente completada
+  - preparado en el repo
+  - falta activar manualmente branch protection en GitHub
+- Fase 4: no iniciada
+- Fase 6: no iniciada
+- Fase 7: parcialmente iniciada por el uso actual de `nginx`
+- Fase 8: parcialmente iniciada porque ya existe flujo real para mostrar
+- Fase 5: iniciada con `Netdata`
+
+Siguiente foco recomendado:
+
+- terminar la activacion manual de Fase 3 en GitHub
+- luego pasar a Fase 6 con `CodeQL` y `Dependabot`
