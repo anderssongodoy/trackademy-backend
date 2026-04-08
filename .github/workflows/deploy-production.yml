@@ -28,6 +28,8 @@ jobs:
       QUARKUS_DATASOURCE_USERNAME: postgres
       QUARKUS_DATASOURCE_PASSWORD: postgres
       QUARKUS_OIDC_TENANT_ENABLED: "false"
+      APP_AUTH_MICROSOFT_FRONTEND_CLIENT_ID: ci-microsoft-client-id
+      APP_AUTH_GOOGLE_FRONTEND_CLIENT_ID: ci-google-client-id
       APP_AUTH_JWT_SECRET: trackademy-ci-secret
 
     steps:
