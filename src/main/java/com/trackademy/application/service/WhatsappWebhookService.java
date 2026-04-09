@@ -30,14 +30,14 @@ public class WhatsappWebhookService implements WhatsappWebhookUseCase {
             WhatsappLinkPort whatsappLinkPort,
             WhatsappMessagePort whatsappMessagePort,
             WhatsappCommandService whatsappCommandService,
-            @ConfigProperty(name = "app.whatsapp.meta.webhook-verify-token", defaultValue = "") String verifyToken,
-            @ConfigProperty(name = "app.whatsapp.meta.app-secret", defaultValue = "") String appSecret
+            @ConfigProperty(name = "app.whatsapp.meta.webhook-verify-token") Optional<String> verifyToken,
+            @ConfigProperty(name = "app.whatsapp.meta.app-secret") Optional<String> appSecret
     ) {
         this.whatsappLinkPort = whatsappLinkPort;
         this.whatsappMessagePort = whatsappMessagePort;
         this.whatsappCommandService = whatsappCommandService;
-        this.verifyToken = verifyToken;
-        this.appSecret = appSecret;
+        this.verifyToken = verifyToken.orElse("");
+        this.appSecret = appSecret.orElse("");
     }
 
     @Override

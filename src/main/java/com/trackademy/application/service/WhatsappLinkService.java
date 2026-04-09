@@ -11,6 +11,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
+import java.util.Optional;
 
 @ApplicationScoped
 public class WhatsappLinkService implements WhatsappLinkUseCase {
@@ -22,11 +23,11 @@ public class WhatsappLinkService implements WhatsappLinkUseCase {
 
     public WhatsappLinkService(
             WhatsappLinkPort whatsappLinkPort,
-            @ConfigProperty(name = "app.whatsapp.official-number", defaultValue = "") String officialNumber,
+            @ConfigProperty(name = "app.whatsapp.official-number") Optional<String> officialNumber,
             @ConfigProperty(name = "app.whatsapp.link-code.ttl-seconds", defaultValue = "600") long ttlSeconds
     ) {
         this.whatsappLinkPort = whatsappLinkPort;
-        this.officialNumber = officialNumber;
+        this.officialNumber = officialNumber.orElse("");
         this.ttlSeconds = ttlSeconds;
     }
 

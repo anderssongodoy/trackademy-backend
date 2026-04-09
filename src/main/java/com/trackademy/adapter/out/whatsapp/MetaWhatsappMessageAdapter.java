@@ -13,6 +13,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @ApplicationScoped
@@ -29,13 +30,13 @@ public class MetaWhatsappMessageAdapter implements WhatsappMessagePort {
 
     public MetaWhatsappMessageAdapter(
             ObjectMapper objectMapper,
-            @ConfigProperty(name = "app.whatsapp.meta.access-token", defaultValue = "") String accessToken,
-            @ConfigProperty(name = "app.whatsapp.meta.phone-number-id", defaultValue = "") String phoneNumberId,
+            @ConfigProperty(name = "app.whatsapp.meta.access-token") Optional<String> accessToken,
+            @ConfigProperty(name = "app.whatsapp.meta.phone-number-id") Optional<String> phoneNumberId,
             @ConfigProperty(name = "app.whatsapp.meta.api-version", defaultValue = "v23.0") String apiVersion
     ) {
         this.objectMapper = objectMapper;
-        this.accessToken = accessToken;
-        this.phoneNumberId = phoneNumberId;
+        this.accessToken = accessToken.orElse("");
+        this.phoneNumberId = phoneNumberId.orElse("");
         this.apiVersion = apiVersion;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
