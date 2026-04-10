@@ -317,25 +317,6 @@ Validacion ejecutada:
 - Backend: `mvn -DskipTests compile` termino en `BUILD SUCCESS`.
 - Frontend: `npm run build` termino correctamente con el warning conocido de budget SCSS en onboarding.
 
-Estado P1.C al 2026-04-09:
-
-- P1.C iniciado.
-- `extraer-pdf/sql/schema.sql` fue usado como referencia de estructura de BD, no como parte del runtime principal.
-- Se reemplazo el esquema minimo por `V20260408_01__initial_schema.sql`.
-- Se elimino la migracion separada `V20260409_01__whatsapp_mvp.sql`.
-- La migracion inicial ahora unifica catalogo, silabos, usuario/periodo, agenda, recordatorios, operaciones, tareas/notas manuales, calendar sync y WhatsApp MVP.
-- Se corrigio el orden de creacion respecto a la referencia de `extraer-pdf`: `usuario_periodo_curso` se crea antes de `usuario_periodo_curso_confianza`.
-- Se incluyo `curso_carrera`, aunque no tenga entidad JPA, porque el backend la usa en queries nativas de catalogo.
-- Se incluyo `universidad` como tabla base minima porque catalogo guarda `universidad_id` en campus, carrera, periodo y curso.
-- Se incluyo `create extension if not exists unaccent` porque busqueda de cursos usa `unaccent(...)`.
-- No se agregaron seeds ni datos dummy de catalogo.
-- `quarkus.flyway.migrate-at-start` ahora se controla con `QUARKUS_FLYWAY_MIGRATE_AT_START`, apagado por defecto.
-- En VPS no se debe activar migracion automatica hasta confirmar si la base existente ya tiene `flyway_schema_history` o necesita baseline controlado.
-
-Validacion ejecutada:
-
-- Backend: `mvn -DskipTests compile` termino en `BUILD SUCCESS`.
-
 ### P1.A Configuracion segura de produccion
 
 Prioridad: muy alta.
