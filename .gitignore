@@ -53,6 +53,7 @@ nb-configuration.xml
 !/ops/DOCKER_NOTES.md
 !/ops/ENTERPRISE_ROADMAP.md
 !/ops/SOLO_DEVELOPER_FLOW.md
+!/ops/TRACKADEMY_PROJECT_CONTEXT_AND_ACTION_PLAN.md
 !/ops/docker-compose.prod.yml
 !/ops/deploy-prod.sh
 !/ops/trackademy-backend.service
