@@ -1,6 +1,7 @@
 package com.trackademy.adapter.in.rest;
 
 import com.trackademy.adapter.in.rest.dto.OnboardingRequest;
+import com.trackademy.adapter.in.rest.dto.ApiErrorResponse;
 import com.trackademy.adapter.in.rest.dto.OnboardingPdfPreviewResponse;
 import com.trackademy.adapter.in.rest.dto.OnboardingResponse;
 import com.trackademy.application.port.in.AuthUseCase;
@@ -111,14 +112,12 @@ public class OnboardingResource {
         }
         if (archivo == null || archivo.uploadedFile() == null) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("Debes adjuntar un PDF de matricula.")
+                    .entity(ApiErrorResponse.validation("Debes adjuntar un PDF de matricula."))
                     .build();
         }
 
         try (var stream = java.nio.file.Files.newInputStream(archivo.uploadedFile())) {
             return Response.ok(OnboardingPdfPreviewResponse.from(onboardingPdfPreviewService.previsualizar(stream))).build();
-        } catch (IllegalArgumentException exception) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(exception.getMessage()).build();
         }
     }
 }

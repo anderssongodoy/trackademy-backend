@@ -1,5 +1,6 @@
 package com.trackademy.adapter.in.rest;
 
+import com.trackademy.adapter.in.rest.dto.ApiErrorResponse;
 import com.trackademy.application.port.in.AuthUseCase;
 import com.trackademy.domain.model.auth.AuthLoginResult;
 import com.trackademy.domain.model.auth.AuthSession;
@@ -26,34 +27,34 @@ public class AuthResource {
     @POST
     @Path("/microsoft")
     public Response microsoft(MicrosoftLoginRequest request) {
-    if (request == null || request.idToken() == null || request.idToken().isBlank()) {
-        return Response.status(Response.Status.BAD_REQUEST)
-            .entity("idToken es requerido")
-            .build();
-    }
-
-    return authUseCase.loginWithMicrosoft(request.idToken())
-        .map(this::buildLoginResponse)
-        .orElse(Response.status(Response.Status.UNAUTHORIZED)
-            .entity("Token de Microsoft invalido")
-            .build());
-    }
-
-            @POST
-            @Path("/google")
-            public Response google(GoogleLoginRequest request) {
-            if (request == null || request.idToken() == null || request.idToken().isBlank()) {
-                return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("idToken es requerido")
+        if (request == null || request.idToken() == null || request.idToken().isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(ApiErrorResponse.validation("idToken es requerido"))
                     .build();
-            }
+        }
 
-            return authUseCase.loginWithGoogle(request.idToken())
+        return authUseCase.loginWithMicrosoft(request.idToken())
                 .map(this::buildLoginResponse)
                 .orElse(Response.status(Response.Status.UNAUTHORIZED)
-                    .entity("Token de Google invalido")
-                    .build());
-            }
+                        .entity(ApiErrorResponse.unauthorized("Token de Microsoft invalido"))
+                        .build());
+    }
+
+    @POST
+    @Path("/google")
+    public Response google(GoogleLoginRequest request) {
+        if (request == null || request.idToken() == null || request.idToken().isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(ApiErrorResponse.validation("idToken es requerido"))
+                    .build();
+        }
+
+        return authUseCase.loginWithGoogle(request.idToken())
+                .map(this::buildLoginResponse)
+                .orElse(Response.status(Response.Status.UNAUTHORIZED)
+                        .entity(ApiErrorResponse.unauthorized("Token de Google invalido"))
+                        .build());
+    }
 
     @GET
     @Path("/session")
@@ -73,7 +74,7 @@ public class AuthResource {
     }
 
     public record MicrosoftLoginRequest(
-        String idToken
+            String idToken
     ) {
     }
 
@@ -83,18 +84,18 @@ public class AuthResource {
     }
 
     public record MicrosoftLoginResponse(
-        String token,
-        String tokenType,
-        long expiresIn,
-        String email,
-        String name
+            String token,
+            String tokenType,
+            long expiresIn,
+            String email,
+            String name
     ) {
     }
 
     public record AuthSessionResponse(
             boolean authenticated,
-        String email,
-        String name
+            String email,
+            String name
     ) {
     }
 }

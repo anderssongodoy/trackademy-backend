@@ -301,6 +301,22 @@ Validacion ejecutada:
 - Backend: `mvn -DskipTests compile` termino en `BUILD SUCCESS`.
 - Frontend: `npm run build` termino correctamente con el warning conocido de budget SCSS en onboarding.
 
+Estado P1.B al 2026-04-09:
+
+- P1.B iniciado.
+- Se agrego `ApiErrorResponse` como contrato JSON para errores.
+- Se agrego `IllegalArgumentExceptionMapper` para devolver `400` uniforme en validaciones de dominio.
+- `AuthResource`, `OnboardingResource`, `MeResource` y `WhatsappWebhookResource` ya no devuelven texto plano para los errores de validacion cubiertos.
+- El frontend agrego `apiErrorMessage` para leer `error.error.message` cuando el backend entrega el nuevo contrato.
+- Se aplico lectura de mensaje real en operaciones criticas: onboarding, preview PDF, perfil, WhatsApp, configuracion de horario, metadatos de curso y notas.
+- No se cambiaron respuestas exitosas.
+- No se agregaron fallbacks de datos falsos.
+
+Validacion ejecutada:
+
+- Backend: `mvn -DskipTests compile` termino en `BUILD SUCCESS`.
+- Frontend: `npm run build` termino correctamente con el warning conocido de budget SCSS en onboarding.
+
 ### P1.A Configuracion segura de produccion
 
 Prioridad: muy alta.

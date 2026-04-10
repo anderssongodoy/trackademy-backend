@@ -2,6 +2,7 @@ package com.trackademy.adapter.in.rest;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.trackademy.adapter.in.rest.dto.ApiErrorResponse;
 import com.trackademy.application.port.in.WhatsappWebhookUseCase;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -45,14 +46,18 @@ public class WhatsappWebhookResource {
     ) {
         byte[] rawBytes = rawPayload == null ? new byte[0] : rawPayload.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         if (!whatsappWebhookUseCase.isSignatureValid(rawBytes, signatureHeader)) {
-            return Response.status(Response.Status.FORBIDDEN).build();
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(ApiErrorResponse.forbidden("Firma de WhatsApp invalida."))
+                    .build();
         }
 
         JsonNode payload;
         try {
             payload = objectMapper.readTree(rawPayload);
         } catch (Exception ex) {
-            return Response.status(Response.Status.BAD_REQUEST).build();
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(ApiErrorResponse.badRequest("Payload JSON invalido."))
+                    .build();
         }
 
         whatsappWebhookUseCase.handleIncomingWebhook(payload);
