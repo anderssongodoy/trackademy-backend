@@ -72,15 +72,11 @@ public class MeResource {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
 
-        try {
-            return Response.ok(
-                    MiPeriodoActualResponse.from(
-                            meCommandUseCase.actualizarPerfilAcademico(principal.get().email(), request.toCommand())
-                    )
-            ).build();
-        } catch (IllegalArgumentException ex) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
-        }
+        return Response.ok(
+                MiPeriodoActualResponse.from(
+                        meCommandUseCase.actualizarPerfilAcademico(principal.get().email(), request.toCommand())
+                )
+        ).build();
     }
 
     @PUT
@@ -94,15 +90,11 @@ public class MeResource {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
 
-        try {
-            return Response.ok(
-                    MiPeriodoActualResponse.from(
-                            meCommandUseCase.actualizarPerfilPersonal(principal.get().email(), request.toCommand())
-                    )
-            ).build();
-        } catch (IllegalArgumentException ex) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
-        }
+        return Response.ok(
+                MiPeriodoActualResponse.from(
+                        meCommandUseCase.actualizarPerfilPersonal(principal.get().email(), request.toCommand())
+                )
+        ).build();
     }
 
     @PUT
@@ -116,15 +108,11 @@ public class MeResource {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
 
-        try {
-            return Response.ok(
-                    MiPeriodoActualResponse.from(
-                            meCommandUseCase.actualizarConfiguracionPeriodo(principal.get().email(), request.toCommand())
-                    )
-            ).build();
-        } catch (IllegalArgumentException ex) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
-        }
+        return Response.ok(
+                MiPeriodoActualResponse.from(
+                        meCommandUseCase.actualizarConfiguracionPeriodo(principal.get().email(), request.toCommand())
+                )
+        ).build();
     }
 
     @GET
@@ -222,18 +210,14 @@ public class MeResource {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
 
-        try {
-            return Response.ok(
-                    MiCursoResponse.from(
-                            meCommandUseCase.actualizarDatosCurso(
-                                    principal.get().email(),
-                                    request.toCommand(usuarioPeriodoCursoId)
-                            )
-                    )
-            ).build();
-        } catch (IllegalArgumentException ex) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
-        }
+        return Response.ok(
+                MiCursoResponse.from(
+                        meCommandUseCase.actualizarDatosCurso(
+                                principal.get().email(),
+                                request.toCommand(usuarioPeriodoCursoId)
+                        )
+                )
+        ).build();
     }
 
     @PUT
@@ -248,15 +232,11 @@ public class MeResource {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
 
-        try {
-            return Response.ok(
-                    ActualizarHorarioCursoResponse.from(
-                            meCommandUseCase.actualizarHorarioCurso(principal.get().email(), request.toCommand(usuarioPeriodoCursoId))
-                    )
-            ).build();
-        } catch (IllegalArgumentException ex) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
-        }
+        return Response.ok(
+                ActualizarHorarioCursoResponse.from(
+                        meCommandUseCase.actualizarHorarioCurso(principal.get().email(), request.toCommand(usuarioPeriodoCursoId))
+                )
+        ).build();
     }
 
     @PUT
@@ -272,18 +252,14 @@ public class MeResource {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
 
-        try {
-            return Response.ok(
-                    MiEvaluacionCursoResponse.from(
-                            meCommandUseCase.registrarNotaEvaluacion(
-                                    principal.get().email(),
-                                    request.toCommand(usuarioPeriodoCursoId, evaluacionCodigo)
-                            )
-                    )
-            ).build();
-        } catch (IllegalArgumentException ex) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(ex.getMessage()).build();
-        }
+        return Response.ok(
+                MiEvaluacionCursoResponse.from(
+                        meCommandUseCase.registrarNotaEvaluacion(
+                                principal.get().email(),
+                                request.toCommand(usuarioPeriodoCursoId, evaluacionCodigo)
+                        )
+                )
+        ).build();
     }
 
     @GET
