@@ -51,7 +51,7 @@ public class ProductionConfigValidator {
 
         List<String> missing = new ArrayList<>();
         requireStrongJwtSecret(missing);
-        requireWhatsappConfigIfEnabled(missing);
+        requireWhatsappConfigIfConfigured(missing);
 
         if (!missing.isEmpty()) {
             throw new IllegalStateException(
@@ -63,8 +63,8 @@ public class ProductionConfigValidator {
 
     private boolean isProduction() {
         return LaunchMode.current() == LaunchMode.NORMAL
-                || "production".equalsIgnoreCase(appEnvironment)
-                || "prod".equalsIgnoreCase(appEnvironment);
+                && ("production".equalsIgnoreCase(appEnvironment)
+                        || "prod".equalsIgnoreCase(appEnvironment));
     }
 
     private void requireStrongJwtSecret(List<String> missing) {
@@ -73,7 +73,7 @@ public class ProductionConfigValidator {
         }
     }
 
-    private void requireWhatsappConfigIfEnabled(List<String> missing) {
+    private void requireWhatsappConfigIfConfigured(List<String> missing) {
         if (!isWhatsappConfigured()) {
             return;
         }
