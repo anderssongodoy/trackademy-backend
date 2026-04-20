@@ -2,6 +2,8 @@ package com.trackademy.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
 
+import java.time.OffsetDateTime;
+
 @Entity
 @Table(name = "silabo")
 public class SilaboEntity {
@@ -18,6 +20,15 @@ public class SilaboEntity {
 
     @Column(name = "vigente", nullable = false)
     public Boolean vigente;
+
+    @Column(name = "pdf_asset_id")
+    public Long pdfAssetId;
+
+    @Column(name = "fuente_pdf")
+    public String fuentePdf;
+
+    @Column(name = "hash_pdf")
+    public String hashPdf;
 
     @Column(name = "anio")
     public Integer anio;
@@ -36,4 +47,7 @@ public class SilaboEntity {
 
     @Column(name = "logro_general")
     public String logroGeneral;
+
+    @Column(name = "extraido_en")
+    public OffsetDateTime extraidoEn;
 }

@@ -312,7 +312,7 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
 
         for (UsuarioPeriodoCursoEntity upc : upcs) {
             CursoEntity curso = contexto.cursoById().get(upc.cursoId);
-            Optional<SilaboEntity> silaboOpt = silaboRepository.buscarVigentePorCursoId(upc.cursoId);
+            Optional<SilaboEntity> silaboOpt = resolveSilabo(upc);
             if (silaboOpt.isEmpty()) {
                 continue;
             }
@@ -495,6 +495,13 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
 
     private String evaluationKey(Long usuarioPeriodoCursoId, String codigo) {
         return usuarioPeriodoCursoId + "::" + codigo;
+    }
+
+    private Optional<SilaboEntity> resolveSilabo(UsuarioPeriodoCursoEntity upc) {
+        if (upc.silaboId != null) {
+            return Optional.ofNullable(silaboRepository.findById(upc.silaboId));
+        }
+        return silaboRepository.buscarVigentePorCursoId(upc.cursoId);
     }
 
     private MiCalendarSyncAccount toCalendarSyncAccount(String provider, CalendarSyncAccountEntity entity) {

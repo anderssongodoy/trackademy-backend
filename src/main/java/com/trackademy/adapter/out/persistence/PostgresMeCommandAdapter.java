@@ -121,6 +121,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
             if (cursoIds.contains(existente.cursoId)) {
                 existente.activo = true;
                 existente.estado = "matriculado";
+                existente.silaboId = resolveCurrentSilaboId(existente.cursoId);
                 if (existente.modalidad == null) {
                     existente.modalidad = cursoRepository.findByIdOptional(existente.cursoId).map(c -> c.modalidad).orElse(null);
                 }
@@ -150,6 +151,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
             nuevo.activo = true;
             nuevo.origen = "onboarding";
             nuevo.modalidad = curso.modalidad;
+            nuevo.silaboId = resolveCurrentSilaboId(cursoId);
             usuarioPeriodoCursoRepository.persist(nuevo);
         }
 
@@ -351,15 +353,15 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         PeriodoEntity periodo = periodoRepository.findById(usuarioPeriodo.periodoId);
         CursoEntity curso = cursoRepository.findById(usuarioPeriodoCurso.cursoId);
 
-        Optional<SilaboEntity> silaboOpt = silaboRepository.buscarVigentePorCursoId(usuarioPeriodoCurso.cursoId);
+        Optional<SilaboEntity> silaboOpt = resolveSilabo(usuarioPeriodoCurso);
         if (silaboOpt.isEmpty()) {
-            throw new IllegalArgumentException("El curso no tiene un silabo vigente asociado.");
+            throw new IllegalArgumentException("El curso no tiene un silabo asignado o vigente asociado.");
         }
 
         SilaboEvaluacionEntity silaboEvaluacion = silaboEvaluacionRepository.listarPorSilabo(silaboOpt.get().id).stream()
                 .filter(item -> item.codigo != null && item.codigo.equalsIgnoreCase(command.evaluacionCodigo()))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No encontramos esa evaluacion en el silabo vigente."));
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos esa evaluacion en el silabo asignado al curso."));
 
         UsuarioPeriodoEvaluacionEntity evaluacion = usuarioPeriodoEvaluacionRepository
                 .buscarPorUsuarioPeriodoCursoYCodigo(usuarioPeriodoCurso.id, silaboEvaluacion.codigo)
@@ -432,6 +434,19 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
 
         LocalDate inicioSemana = periodo.fechaInicio.plusDays((long) (semana - 1) * 7L);
         return primerDia == null ? inicioSemana : inicioSemana.plusDays(primerDia - 1L);
+    }
+
+    private Optional<SilaboEntity> resolveSilabo(UsuarioPeriodoCursoEntity usuarioPeriodoCurso) {
+        if (usuarioPeriodoCurso.silaboId != null) {
+            return Optional.ofNullable(silaboRepository.findById(usuarioPeriodoCurso.silaboId));
+        }
+        return silaboRepository.buscarVigentePorCursoId(usuarioPeriodoCurso.cursoId);
+    }
+
+    private Long resolveCurrentSilaboId(Long cursoId) {
+        return silaboRepository.buscarVigentePorCursoId(cursoId)
+                .map(s -> s.id)
+                .orElse(null);
     }
 
     private void validarBloque(ActualizarHorarioCursoCommand.BloqueHorario bloque) {

@@ -43,6 +43,9 @@ public class UsuarioPeriodoEvaluacionEntity {
     @Column(name = "reemplaza_a_id")
     public Long reemplazaAId;
 
+    @Column(name = "estado_migracion")
+    public String estadoMigracion;
+
     @Column(name = "comentarios")
     public String comentarios;
 }

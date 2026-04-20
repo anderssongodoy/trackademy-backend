@@ -4,7 +4,10 @@ import java.util.List;
 
 public record CursoDetalle(
         Curso curso,
+        Long silaboId,
         String version,
+        CursoSilaboPdf pdf,
+        String pdfDownloadPath,
         Integer anio,
         String periodoTexto,
         String sumilla,
