@@ -16,6 +16,9 @@ public class UsuarioPeriodoCursoEntity {
     @Column(name = "curso_id", nullable = false)
     public Long cursoId;
 
+    @Column(name = "silabo_id")
+    public Long silaboId;
+
     @Column(name = "seccion")
     public String seccion;
 

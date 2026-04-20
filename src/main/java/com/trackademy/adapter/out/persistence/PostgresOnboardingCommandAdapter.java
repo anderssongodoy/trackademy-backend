@@ -23,6 +23,7 @@ public class PostgresOnboardingCommandAdapter implements OnboardingCommandPort {
     private final UsuarioPreferenciaEstudioPanacheRepository preferenciaEstudioRepository;
     private final UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository;
     private final CursoPanacheRepository cursoRepository;
+    private final SilaboPanacheRepository silaboRepository;
 
     public PostgresOnboardingCommandAdapter(
             UsuarioPanacheRepository usuarioRepository,
@@ -31,7 +32,8 @@ public class PostgresOnboardingCommandAdapter implements OnboardingCommandPort {
             UsuarioPeriodoCursoHorarioPanacheRepository horarioRepository,
             UsuarioPreferenciaEstudioPanacheRepository preferenciaEstudioRepository,
             UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository,
-            CursoPanacheRepository cursoRepository
+            CursoPanacheRepository cursoRepository,
+            SilaboPanacheRepository silaboRepository
     ) {
         this.usuarioRepository = usuarioRepository;
         this.usuarioPeriodoRepository = usuarioPeriodoRepository;
@@ -40,6 +42,7 @@ public class PostgresOnboardingCommandAdapter implements OnboardingCommandPort {
         this.preferenciaEstudioRepository = preferenciaEstudioRepository;
         this.confianzaRepository = confianzaRepository;
         this.cursoRepository = cursoRepository;
+        this.silaboRepository = silaboRepository;
     }
 
     @Override
@@ -118,6 +121,9 @@ public class PostgresOnboardingCommandAdapter implements OnboardingCommandPort {
             upc.modalidad = cursoRepository.findByIdOptional(cursoId)
                     .map(c -> c.modalidad)
                     .orElse(cursoSeleccionado.modalidad());
+            upc.silaboId = silaboRepository.buscarVigentePorCursoId(cursoId)
+                    .map(s -> s.id)
+                    .orElse(null);
             upc.estado = "matriculado";
             upc.activo = true;
 

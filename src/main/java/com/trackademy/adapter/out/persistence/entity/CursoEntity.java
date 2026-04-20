@@ -2,6 +2,8 @@ package com.trackademy.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "curso")
 public class CursoEntity {
@@ -12,6 +14,9 @@ public class CursoEntity {
 
     @Column(name = "universidad_id", nullable = false)
     public Long universidadId;
+
+    @Column(name = "public_id", nullable = false)
+    public UUID publicId;
 
     @Column(name = "codigo", nullable = false)
     public String codigo;
