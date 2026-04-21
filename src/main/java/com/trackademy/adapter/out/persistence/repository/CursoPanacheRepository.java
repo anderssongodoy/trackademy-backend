@@ -40,8 +40,16 @@ public class CursoPanacheRepository implements PanacheRepositoryBase<CursoEntity
                 .findFirst();
     }
 
+    public Optional<CursoConCiclo> buscarPorCodigoConCiclo(String codigo) {
+        return buscarPorCodigo(codigo).map(entity -> new CursoConCiclo(entity, buscarCicloReferencial(entity.id)));
+    }
+
     public Optional<CursoEntity> buscarPorPublicId(UUID publicId) {
         return find("publicId", publicId).firstResultOptional();
+    }
+
+    public Optional<CursoConCiclo> buscarPorPublicIdConCiclo(UUID publicId) {
+        return buscarPorPublicId(publicId).map(entity -> new CursoConCiclo(entity, buscarCicloReferencial(entity.id)));
     }
 
     public List<CursoEntity> listarPorIds(List<Long> ids) {
@@ -219,5 +227,28 @@ public class CursoPanacheRepository implements PanacheRepositoryBase<CursoEntity
         entity.horasSemanales = row[8] == null ? null : ((Number) row[8]).intValue();
         Integer ciclo = row[9] == null ? null : ((Number) row[9]).intValue();
         return new CursoConCiclo(entity, ciclo);
+    }
+
+    private Integer buscarCicloReferencial(Long cursoId) {
+        if (cursoId == null) {
+            return null;
+        }
+
+        List<?> rows = getEntityManager()
+                .createNativeQuery(
+                        "select ccc.ciclo_referencial " +
+                                "from curso_carrera_ciclo ccc " +
+                                "where ccc.curso_id = ?1 " +
+                                "order by ccc.ciclo_referencial asc nulls last " +
+                                "limit 1"
+                )
+                .setParameter(1, cursoId)
+                .getResultList();
+
+        if (rows.isEmpty() || rows.get(0) == null) {
+            return null;
+        }
+
+        return ((Number) rows.get(0)).intValue();
     }
 }
