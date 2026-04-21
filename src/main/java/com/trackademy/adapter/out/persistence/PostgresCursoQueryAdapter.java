@@ -83,12 +83,14 @@ public class PostgresCursoQueryAdapter implements CursoQueryPort {
 
     @Override
     public Optional<Curso> obtenerPorCodigo(String codigo) {
-        return cursoRepository.buscarPorCodigo(codigo).map(entity -> toDomain(entity, null));
+        return cursoRepository.buscarPorCodigoConCiclo(codigo)
+                .map(item -> toDomain(item.curso(), item.cicloReferencial()));
     }
 
     @Override
     public Optional<Curso> obtenerPorPublicId(UUID publicId) {
-        return cursoRepository.buscarPorPublicId(publicId).map(entity -> toDomain(entity, null));
+        return cursoRepository.buscarPorPublicIdConCiclo(publicId)
+                .map(item -> toDomain(item.curso(), item.cicloReferencial()));
     }
 
 
@@ -110,7 +112,9 @@ public class PostgresCursoQueryAdapter implements CursoQueryPort {
         }
 
         CursoEntity cursoEntity = cursoOpt.get();
-        Curso curso = toDomain(cursoEntity, null);
+        Curso curso = cursoRepository.buscarPorPublicIdConCiclo(cursoEntity.publicId)
+                .map(item -> toDomain(item.curso(), item.cicloReferencial()))
+                .orElseGet(() -> toDomain(cursoEntity, null));
 
         Optional<SilaboEntity> silaboOpt = silaboRepository.buscarVigentePorCursoId(cursoEntity.id);
         if (silaboOpt.isEmpty()) {
