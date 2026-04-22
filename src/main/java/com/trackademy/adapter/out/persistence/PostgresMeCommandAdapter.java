@@ -10,6 +10,7 @@ import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoCursoHorarioE
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEvaluacionEntity;
 import com.trackademy.adapter.out.persistence.repository.CursoPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.CampusPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.PeriodoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.SilaboEvaluacionPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.SilaboPanacheRepository;
@@ -53,6 +54,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
     private final UsuarioPeriodoCursoHorarioPanacheRepository horarioRepository;
     private final UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository;
     private final UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository;
+    private final CampusPanacheRepository campusRepository;
     private final SilaboPanacheRepository silaboRepository;
     private final SilaboEvaluacionPanacheRepository silaboEvaluacionRepository;
     private final PeriodoPanacheRepository periodoRepository;
@@ -65,6 +67,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
             UsuarioPeriodoCursoHorarioPanacheRepository horarioRepository,
             UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository,
             UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository,
+            CampusPanacheRepository campusRepository,
             SilaboPanacheRepository silaboRepository,
             SilaboEvaluacionPanacheRepository silaboEvaluacionRepository,
             PeriodoPanacheRepository periodoRepository
@@ -76,6 +79,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         this.horarioRepository = horarioRepository;
         this.confianzaRepository = confianzaRepository;
         this.usuarioPeriodoEvaluacionRepository = usuarioPeriodoEvaluacionRepository;
+        this.campusRepository = campusRepository;
         this.silaboRepository = silaboRepository;
         this.silaboEvaluacionRepository = silaboEvaluacionRepository;
         this.periodoRepository = periodoRepository;
@@ -165,6 +169,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
                 usuarioPeriodo.id,
                 usuarioPeriodo.periodoId,
                 usuarioPeriodo.campusId,
+                campusNombre(usuarioPeriodo.campusId),
                 usuarioPeriodo.carreraId,
                 usuarioPeriodo.cicloActual,
                 usuarioPeriodo.onboardingEstado,
@@ -209,6 +214,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
                 usuarioPeriodo.id,
                 usuarioPeriodo.periodoId,
                 usuarioPeriodo.campusId,
+                campusNombre(usuarioPeriodo.campusId),
                 usuarioPeriodo.carreraId,
                 usuarioPeriodo.cicloActual,
                 usuarioPeriodo.onboardingEstado,
@@ -258,6 +264,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
                 usuarioPeriodo.id,
                 usuarioPeriodo.periodoId,
                 usuarioPeriodo.campusId,
+                campusNombre(usuarioPeriodo.campusId),
                 usuarioPeriodo.carreraId,
                 usuarioPeriodo.cicloActual,
                 usuarioPeriodo.onboardingEstado,
@@ -447,6 +454,14 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         return silaboRepository.buscarVigentePorCursoId(cursoId)
                 .map(s -> s.id)
                 .orElse(null);
+    }
+
+    private String campusNombre(Long campusId) {
+        if (campusId == null) {
+            return null;
+        }
+        var campus = campusRepository.findById(campusId);
+        return campus == null ? null : campus.nombre;
     }
 
     private void validarBloque(ActualizarHorarioCursoCommand.BloqueHorario bloque) {

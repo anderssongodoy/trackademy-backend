@@ -7,6 +7,7 @@ import com.trackademy.domain.model.me.MiCalendarSyncAccount;
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiDashboardResumen;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
+import com.trackademy.domain.model.me.MiEvaluacionesCursoResumen;
 import com.trackademy.domain.model.me.MiHorarioCurso;
 import com.trackademy.domain.model.me.MiPeriodoActual;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -47,6 +48,11 @@ public class MeQueryService implements MeQueryUseCase {
     @Override
     public List<MiEvaluacionCurso> listarMisEvaluaciones(String email, Long cursoId) {
         return meQueryPort.listarMisEvaluaciones(email, cursoId);
+    }
+
+    @Override
+    public MiEvaluacionesCursoResumen obtenerResumenEvaluaciones(String email, Long cursoId) {
+        return meQueryPort.obtenerResumenEvaluaciones(email, cursoId);
     }
 
     @Override

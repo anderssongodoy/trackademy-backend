@@ -5,6 +5,7 @@ import com.trackademy.domain.model.me.MiCalendarSyncAccount;
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiDashboardResumen;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
+import com.trackademy.domain.model.me.MiEvaluacionesCursoResumen;
 import com.trackademy.domain.model.me.MiHorarioCurso;
 import com.trackademy.domain.model.me.MiPeriodoActual;
 
@@ -23,6 +24,8 @@ public interface MeQueryUseCase {
     List<MiHorarioCurso> listarMisHorarios(String email);
 
     List<MiEvaluacionCurso> listarMisEvaluaciones(String email, Long cursoId);
+
+    MiEvaluacionesCursoResumen obtenerResumenEvaluaciones(String email, Long cursoId);
 
     List<MiCalendarioEvento> listarCalendario(String email, LocalDate from, LocalDate to);
 
