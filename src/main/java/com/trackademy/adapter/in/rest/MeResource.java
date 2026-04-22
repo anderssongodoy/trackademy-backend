@@ -11,6 +11,7 @@ import com.trackademy.adapter.in.rest.dto.MiCalendarSyncAccountResponse;
 import com.trackademy.adapter.in.rest.dto.MiCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiDashboardResponse;
 import com.trackademy.adapter.in.rest.dto.MiEvaluacionCursoResponse;
+import com.trackademy.adapter.in.rest.dto.MiEvaluacionesCursoResumenResponse;
 import com.trackademy.adapter.in.rest.dto.MiHorarioCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiPeriodoActualResponse;
 import com.trackademy.adapter.in.rest.dto.RegistrarNotaEvaluacionRequest;
@@ -258,6 +259,25 @@ public class MeResource {
                                 principal.get().email(),
                                 request.toCommand(usuarioPeriodoCursoId, evaluacionCodigo)
                         )
+                )
+        ).build();
+    }
+
+    @GET
+    @Path("/evaluaciones/resumen")
+    public Response resumenEvaluaciones(
+            @HeaderParam("Authorization") String authorization,
+            @QueryParam("cursoId") Long cursoId
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        String email = principal.get().email();
+        return Response.ok(
+                MiEvaluacionesCursoResumenResponse.from(
+                        meQueryUseCase.obtenerResumenEvaluaciones(email, cursoId)
                 )
         ).build();
     }

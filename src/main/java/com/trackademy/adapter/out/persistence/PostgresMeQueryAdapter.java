@@ -1,5 +1,6 @@
 package com.trackademy.adapter.out.persistence;
 
+import com.trackademy.adapter.out.persistence.entity.CampusEntity;
 import com.trackademy.adapter.out.persistence.entity.CursoEntity;
 import com.trackademy.adapter.out.persistence.entity.PeriodoEntity;
 import com.trackademy.adapter.out.persistence.entity.PeriodoEventoEntity;
@@ -13,6 +14,7 @@ import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEvaluacionEntity;
 import com.trackademy.adapter.out.persistence.repository.CursoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.CalendarSyncAccountPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.CampusPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.PeriodoEventoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.PeriodoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.SilaboEvaluacionPanacheRepository;
@@ -28,10 +30,13 @@ import com.trackademy.domain.model.me.MiCalendarSyncAccount;
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiDashboardResumen;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
+import com.trackademy.domain.model.me.MiEvaluacionesCursoResumen;
 import com.trackademy.domain.model.me.MiHorarioCurso;
 import com.trackademy.domain.model.me.MiPeriodoActual;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -54,6 +59,7 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
     private final UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository;
     private final UsuarioPeriodoCursoHorarioPanacheRepository usuarioPeriodoCursoHorarioRepository;
     private final UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository;
+    private final CampusPanacheRepository campusRepository;
     private final CursoPanacheRepository cursoRepository;
     private final PeriodoPanacheRepository periodoRepository;
     private final PeriodoEventoPanacheRepository periodoEventoRepository;
@@ -67,6 +73,7 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
             UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository,
             UsuarioPeriodoCursoHorarioPanacheRepository usuarioPeriodoCursoHorarioRepository,
             UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository,
+            CampusPanacheRepository campusRepository,
             CursoPanacheRepository cursoRepository,
             PeriodoPanacheRepository periodoRepository,
             PeriodoEventoPanacheRepository periodoEventoRepository,
@@ -79,6 +86,7 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
         this.usuarioPeriodoCursoRepository = usuarioPeriodoCursoRepository;
         this.usuarioPeriodoCursoHorarioRepository = usuarioPeriodoCursoHorarioRepository;
         this.usuarioPeriodoEvaluacionRepository = usuarioPeriodoEvaluacionRepository;
+        this.campusRepository = campusRepository;
         this.cursoRepository = cursoRepository;
         this.periodoRepository = periodoRepository;
         this.periodoEventoRepository = periodoEventoRepository;
@@ -163,6 +171,12 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
     }
 
     @Override
+    public MiEvaluacionesCursoResumen obtenerResumenEvaluaciones(String email, Long cursoId) {
+        List<MiEvaluacionCurso> evaluaciones = listarMisEvaluaciones(email, cursoId);
+        return construirResumenEvaluaciones(evaluaciones);
+    }
+
+    @Override
     public List<MiCalendarioEvento> listarCalendario(String email, LocalDate from, LocalDate to) {
         Optional<ContextoActual> contextoOpt = obtenerContexto(email);
         if (contextoOpt.isEmpty()) {
@@ -234,7 +248,9 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
             }
         }
 
-        return Optional.of(new ContextoActual(usuarioOpt.get(), usuarioPeriodo, periodo, upcs, cursoById, horariosByUpc, evaluacionesByKey));
+        CampusEntity campus = usuarioPeriodo.campusId == null ? null : campusRepository.findById(usuarioPeriodo.campusId);
+
+        return Optional.of(new ContextoActual(usuarioOpt.get(), usuarioPeriodo, campus, periodo, upcs, cursoById, horariosByUpc, evaluacionesByKey));
     }
 
     private MiPeriodoActual toPeriodoActual(ContextoActual contexto) {
@@ -248,6 +264,7 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
                 up.id,
                 up.periodoId,
                 up.campusId,
+                contexto.campus() == null ? null : contexto.campus().nombre,
                 up.carreraId,
                 up.cicloActual,
                 up.onboardingEstado,
@@ -287,6 +304,8 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
                         upc.cursoId,
                         curso == null ? null : curso.codigo,
                         curso == null ? null : curso.nombre,
+                        contexto.usuarioPeriodo().campusId,
+                        contexto.campus() == null ? null : contexto.campus().nombre,
                         curso == null ? null : curso.modalidad,
                         horario.bloqueNro,
                         horario.diaSemana,
@@ -361,6 +380,38 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
                 .thenComparing(MiEvaluacionCurso::semana, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(MiEvaluacionCurso::evaluacionCodigo, Comparator.nullsLast(Comparator.naturalOrder())));
         return evaluaciones;
+    }
+
+    private MiEvaluacionesCursoResumen construirResumenEvaluaciones(List<MiEvaluacionCurso> evaluaciones) {
+        BigDecimal acumulado = BigDecimal.ZERO;
+        BigDecimal porcentajeEvaluado = BigDecimal.ZERO;
+        long registradas = 0;
+        long pendientes = 0;
+
+        for (MiEvaluacionCurso evaluacion : evaluaciones) {
+            if (evaluacion.nota() == null) {
+                pendientes++;
+                continue;
+            }
+
+            registradas++;
+            if (evaluacion.porcentaje() == null) {
+                continue;
+            }
+
+            porcentajeEvaluado = porcentajeEvaluado.add(evaluacion.porcentaje());
+            acumulado = acumulado.add(evaluacion.nota()
+                    .multiply(evaluacion.porcentaje())
+                    .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
+        }
+
+        return new MiEvaluacionesCursoResumen(
+                acumulado.setScale(2, RoundingMode.HALF_UP),
+                porcentajeEvaluado.setScale(2, RoundingMode.HALF_UP),
+                registradas,
+                pendientes,
+                evaluaciones
+        );
     }
 
     private List<MiCalendarioEvento> construirCalendario(ContextoActual contexto, LocalDate from, LocalDate to) {
@@ -531,6 +582,7 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
     private record ContextoActual(
             UsuarioEntity usuario,
             UsuarioPeriodoEntity usuarioPeriodo,
+            CampusEntity campus,
             PeriodoEntity periodo,
             List<UsuarioPeriodoCursoEntity> upcs,
             Map<Long, CursoEntity> cursoById,

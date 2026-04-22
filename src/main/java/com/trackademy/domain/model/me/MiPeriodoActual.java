@@ -12,6 +12,7 @@ public record MiPeriodoActual(
         Long usuarioPeriodoId,
         Long periodoId,
         Long campusId,
+        String campusNombre,
         Long carreraId,
         Integer cicloActual,
         String onboardingEstado,

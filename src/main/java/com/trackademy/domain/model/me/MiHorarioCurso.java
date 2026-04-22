@@ -7,6 +7,8 @@ public record MiHorarioCurso(
         Long cursoId,
         String codigo,
         String nombre,
+        Long campusId,
+        String campusNombre,
         String modalidad,
         Integer bloqueNro,
         Short diaSemana,
