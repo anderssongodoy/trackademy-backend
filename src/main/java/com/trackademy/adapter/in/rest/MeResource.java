@@ -294,11 +294,10 @@ public class MeResource {
         }
 
         String email = principal.get().email();
-
-        List<MiEvaluacionCursoResponse> evaluaciones = meQueryUseCase.listarMisEvaluaciones(email, cursoId).stream()
-                .map(MiEvaluacionCursoResponse::from)
-                .toList();
-
-        return Response.ok(evaluaciones).build();
+        return Response.ok(
+                MiEvaluacionesCursoResumenResponse.from(
+                        meQueryUseCase.obtenerResumenEvaluaciones(email, cursoId)
+                )
+        ).build();
     }
 }
