@@ -35,6 +35,15 @@ public class CalendarSyncAccountEntity {
     @Column(name = "sync_direction", nullable = false)
     public String syncDirection;
 
+    @Column(name = "access_token_encrypted")
+    public String accessTokenEncrypted;
+
+    @Column(name = "refresh_token_encrypted")
+    public String refreshTokenEncrypted;
+
+    @Column(name = "token_expires_at")
+    public OffsetDateTime tokenExpiresAt;
+
     @Column(name = "estado", nullable = false)
     public String estado;
 
