@@ -13,6 +13,7 @@ import com.trackademy.domain.model.auth.GoogleOAuthLoginResult;
 import com.trackademy.domain.model.auth.GoogleOAuthStartResult;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.jboss.logging.Logger;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -26,6 +27,7 @@ import java.util.Optional;
 @ApplicationScoped
 public class AuthService implements AuthUseCase {
 
+    private static final Logger LOG = Logger.getLogger(AuthService.class);
     private static final long OAUTH_STATE_TTL_SECONDS = 600;
 
     private final GoogleIdentityPort googleIdentityPort;
@@ -75,7 +77,11 @@ public class AuthService implements AuthUseCase {
         return googleOAuthPort.exchangeAuthorizationCode(code)
                 .flatMap(tokens -> googleIdentityPort.verifyGoogleIdToken(tokens.idToken())
                         .map(principal -> {
-                            authPersistencePort.upsertGoogleUserAndCalendar(principal, tokens);
+                            try {
+                                authPersistencePort.upsertGoogleUserAndCalendar(principal, tokens);
+                            } catch (RuntimeException error) {
+                                LOG.warn("No se pudo guardar la vinculacion de Google Calendar durante el login OAuth", error);
+                            }
                             return new GoogleOAuthLoginResult(buildLoginResult(principal), redirectPathOpt.get());
                         }));
     }
