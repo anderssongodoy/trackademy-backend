@@ -6,6 +6,7 @@ import com.trackademy.adapter.in.rest.dto.ActualizarPerfilPersonalRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarDatosCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoResponse;
+import com.trackademy.adapter.in.rest.dto.CalendarSyncPlanResponse;
 import com.trackademy.adapter.in.rest.dto.MiCalendarioEventoResponse;
 import com.trackademy.adapter.in.rest.dto.MiCalendarSyncAccountResponse;
 import com.trackademy.adapter.in.rest.dto.MiCursoResponse;
@@ -16,6 +17,7 @@ import com.trackademy.adapter.in.rest.dto.MiHorarioCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiPeriodoActualResponse;
 import com.trackademy.adapter.in.rest.dto.RegistrarNotaEvaluacionRequest;
 import com.trackademy.application.port.in.AuthUseCase;
+import com.trackademy.application.port.in.CalendarSyncUseCase;
 import com.trackademy.application.port.in.MeCommandUseCase;
 import com.trackademy.application.port.in.MeQueryUseCase;
 import jakarta.ws.rs.GET;
@@ -38,11 +40,18 @@ public class MeResource {
     private final MeQueryUseCase meQueryUseCase;
     private final MeCommandUseCase meCommandUseCase;
     private final AuthUseCase authUseCase;
+    private final CalendarSyncUseCase calendarSyncUseCase;
 
-    public MeResource(MeQueryUseCase meQueryUseCase, MeCommandUseCase meCommandUseCase, AuthUseCase authUseCase) {
+    public MeResource(
+            MeQueryUseCase meQueryUseCase,
+            MeCommandUseCase meCommandUseCase,
+            AuthUseCase authUseCase,
+            CalendarSyncUseCase calendarSyncUseCase
+    ) {
         this.meQueryUseCase = meQueryUseCase;
         this.meCommandUseCase = meCommandUseCase;
         this.authUseCase = authUseCase;
+        this.calendarSyncUseCase = calendarSyncUseCase;
     }
 
     @GET
@@ -197,6 +206,25 @@ public class MeResource {
                 .toList();
 
         return Response.ok(accounts).build();
+    }
+
+    @GET
+    @Path("/calendar-sync/google/plan")
+    public Response planSincronizacionGoogle(
+            @HeaderParam("Authorization") String authorization,
+            @QueryParam("from") LocalDate from,
+            @QueryParam("to") LocalDate to
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        return Response.ok(
+                CalendarSyncPlanResponse.from(
+                        calendarSyncUseCase.obtenerPlanGoogle(principal.get().email(), from, to)
+                )
+        ).build();
     }
 
     @PUT
