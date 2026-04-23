@@ -94,15 +94,19 @@ public class AuthResource {
             return redirectToFrontend("/auth/sign-in", "googleError=missing_code");
         }
 
-        return authUseCase.loginWithGoogleAuthorizationCode(code, state)
-                .map(result -> redirectToFrontend(
-                        result.redirectPath(),
-                        "token=" + encode(result.auth().token())
-                                + "&expiresIn=" + result.auth().expiresIn()
-                                + "&email=" + encode(result.auth().email())
-                                + "&name=" + encode(result.auth().name())
-                ))
-                .orElseGet(() -> redirectToFrontend("/auth/sign-in", "googleError=invalid_oauth"));
+        try {
+            return authUseCase.loginWithGoogleAuthorizationCode(code, state)
+                    .map(result -> redirectToFrontend(
+                            result.redirectPath(),
+                            "token=" + encode(result.auth().token())
+                                    + "&expiresIn=" + result.auth().expiresIn()
+                                    + "&email=" + encode(result.auth().email())
+                                    + "&name=" + encode(result.auth().name())
+                    ))
+                    .orElseGet(() -> redirectToFrontend("/auth/sign-in", "googleError=invalid_oauth"));
+        } catch (RuntimeException ignored) {
+            return redirectToFrontend("/auth/sign-in", "googleError=callback_failed");
+        }
     }
 
     @GET
