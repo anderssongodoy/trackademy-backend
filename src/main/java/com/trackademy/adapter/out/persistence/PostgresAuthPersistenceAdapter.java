@@ -40,6 +40,7 @@ public class PostgresAuthPersistenceAdapter implements AuthPersistencePort {
             nuevo.email = email;
             nuevo.nombre = principal.name();
             usuarioRepository.persist(nuevo);
+            usuarioRepository.flush();
             return nuevo;
         });
 
