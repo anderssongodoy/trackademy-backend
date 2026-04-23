@@ -26,10 +26,10 @@ public class GoogleIdentityAdapter implements GoogleIdentityPort {
     private final ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
 
     public GoogleIdentityAdapter(
-            @ConfigProperty(name = "app.auth.google.frontend-client-id", defaultValue = "") String frontendClientId,
+            @ConfigProperty(name = "app.auth.google.frontend-client-id") Optional<String> frontendClientId,
             @ConfigProperty(name = "app.auth.google.jwks-uri", defaultValue = "https://www.googleapis.com/oauth2/v3/certs") String jwksUri
     ) throws Exception {
-        this.frontendClientId = frontendClientId;
+        this.frontendClientId = frontendClientId.orElse("");
 
         JWKSource<SecurityContext> keySource = new RemoteJWKSet<>(new URL(jwksUri));
         JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, keySource);
