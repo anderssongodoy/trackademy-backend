@@ -6,6 +6,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @ApplicationScoped
 public class CalendarSyncEventPanacheRepository implements PanacheRepositoryBase<CalendarSyncEventEntity, Long> {
@@ -17,5 +18,13 @@ public class CalendarSyncEventPanacheRepository implements PanacheRepositoryBase
                 from,
                 to
         );
+    }
+
+    public Optional<CalendarSyncEventEntity> buscarPorCuentaYSourceKey(Long calendarSyncAccountId, String sourceKey) {
+        return find("calendarSyncAccountId = ?1 and sourceKey = ?2", calendarSyncAccountId, sourceKey).firstResultOptional();
+    }
+
+    public List<CalendarSyncEventEntity> listarPorCuenta(Long calendarSyncAccountId) {
+        return list("calendarSyncAccountId = ?1 order by sourceStartAt asc, sourceKey asc", calendarSyncAccountId);
     }
 }

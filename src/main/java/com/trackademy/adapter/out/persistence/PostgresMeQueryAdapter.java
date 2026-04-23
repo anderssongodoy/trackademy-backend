@@ -568,9 +568,13 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
             );
         }
 
+        boolean connected = !"revoked".equalsIgnoreCase(entity.estado)
+                && entity.accessTokenEncrypted != null
+                && !entity.accessTokenEncrypted.isBlank();
+
         return new MiCalendarSyncAccount(
                 provider,
-                true,
+                connected,
                 entity.email,
                 entity.calendarId,
                 entity.syncDirection,

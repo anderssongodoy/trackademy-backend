@@ -45,6 +45,25 @@ public class SecureTokenCipher {
         }
     }
 
+    public String decrypt(String cipherText) {
+        if (cipherText == null || cipherText.isBlank()) {
+            return null;
+        }
+        try {
+            byte[] payload = Base64.getDecoder().decode(cipherText);
+            byte[] iv = new byte[IV_BYTES];
+            byte[] encrypted = new byte[payload.length - IV_BYTES];
+            System.arraycopy(payload, 0, iv, 0, iv.length);
+            System.arraycopy(payload, iv.length, encrypted, 0, encrypted.length);
+
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
+            return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new IllegalStateException("No se pudo descifrar token externo", e);
+        }
+    }
+
     private byte[] sha256(String value) {
         try {
             return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
