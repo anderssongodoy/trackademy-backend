@@ -264,6 +264,25 @@ public class MeResource {
     }
 
     @GET
+    @Path("/evaluaciones/resumen")
+    public Response resumenEvaluaciones(
+            @HeaderParam("Authorization") String authorization,
+            @QueryParam("cursoId") Long cursoId
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        String email = principal.get().email();
+        return Response.ok(
+                MiEvaluacionesCursoResumenResponse.from(
+                        meQueryUseCase.obtenerResumenEvaluaciones(email, cursoId)
+                )
+        ).build();
+    }
+
+    @GET
     @Path("/evaluaciones")
     public Response misEvaluaciones(
             @HeaderParam("Authorization") String authorization,
