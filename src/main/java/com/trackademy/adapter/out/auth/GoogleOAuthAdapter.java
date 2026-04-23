@@ -37,17 +37,17 @@ public class GoogleOAuthAdapter implements GoogleOAuthPort {
 
     public GoogleOAuthAdapter(
             ObjectMapper objectMapper,
-            @ConfigProperty(name = "app.auth.google.frontend-client-id", defaultValue = "") String clientId,
-            @ConfigProperty(name = "app.auth.google.client-secret", defaultValue = "") String clientSecret,
-            @ConfigProperty(name = "app.auth.google.redirect-uri", defaultValue = "") String redirectUri,
+            @ConfigProperty(name = "app.auth.google.frontend-client-id") Optional<String> clientId,
+            @ConfigProperty(name = "app.auth.google.client-secret") Optional<String> clientSecret,
+            @ConfigProperty(name = "app.auth.google.redirect-uri") Optional<String> redirectUri,
             @ConfigProperty(name = "app.auth.google.authorization-uri", defaultValue = "https://accounts.google.com/o/oauth2/v2/auth") String authorizationUri,
             @ConfigProperty(name = "app.auth.google.token-uri", defaultValue = "https://oauth2.googleapis.com/token") String tokenUri
     ) {
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newHttpClient();
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
-        this.redirectUri = redirectUri;
+        this.clientId = clientId.orElse("");
+        this.clientSecret = clientSecret.orElse("");
+        this.redirectUri = redirectUri.orElse("");
         this.authorizationUri = authorizationUri;
         this.tokenUri = tokenUri;
     }

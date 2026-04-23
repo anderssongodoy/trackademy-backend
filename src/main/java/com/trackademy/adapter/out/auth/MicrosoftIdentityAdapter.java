@@ -27,11 +27,11 @@ public class MicrosoftIdentityAdapter implements MicrosoftIdentityPort {
     private final ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
 
     public MicrosoftIdentityAdapter(
-            @ConfigProperty(name = "app.auth.microsoft.frontend-client-id", defaultValue = "") String frontendClientId,
+            @ConfigProperty(name = "app.auth.microsoft.frontend-client-id") Optional<String> frontendClientId,
             @ConfigProperty(name = "app.auth.microsoft.jwks-uri", defaultValue = "https://login.microsoftonline.com/common/discovery/v2.0/keys") String jwksUri,
             @ConfigProperty(name = "app.auth.microsoft.issuer-prefix", defaultValue = "https://login.microsoftonline.com/") String issuerPrefix
     ) throws Exception {
-        this.frontendClientId = frontendClientId;
+        this.frontendClientId = frontendClientId.orElse("");
         this.issuerPrefix = issuerPrefix;
 
         JWKSource<SecurityContext> keySource = new RemoteJWKSet<>(new URL(jwksUri));
