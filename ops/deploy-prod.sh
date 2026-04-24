@@ -11,6 +11,7 @@ DOCKER_SERVICE_NAME="trackademy-backend"
 HEALTH_URL="http://127.0.0.1:8080/health"
 HEALTH_RETRIES=20
 HEALTH_SLEEP_SECONDS=3
+POSTGRES_CONTAINER_NAME="trackademy-postgres"
 
 cd "$REPO_DIR"
 
@@ -72,6 +73,17 @@ wait_for_health() {
   return 1
 }
 
+verify_database_schema() {
+  docker exec "$POSTGRES_CONTAINER_NAME" psql -U trackademy -d trackademy_bd -v ON_ERROR_STOP=1 -At -c \
+    "select
+       case
+         when to_regclass('public.flyway_schema_history') is not null
+          and to_regclass('public.calendar_sync_event') is not null
+         then 'ok'
+         else 'missing'
+       end;"
+}
+
 rollback() {
   echo "Deployment failed. Starting rollback..."
   docker compose -f "$COMPOSE_FILE" logs --tail 100 || true
@@ -111,6 +123,13 @@ docker compose -f "$COMPOSE_FILE" up -d --force-recreate "$DOCKER_SERVICE_NAME"
 
 echo "Waiting for application health check..."
 wait_for_health "$HEALTH_URL" "$HEALTH_RETRIES" "$HEALTH_SLEEP_SECONDS"
+
+echo "Verifying Flyway history and calendar sync schema..."
+SCHEMA_STATUS="$(verify_database_schema)"
+if [[ "$SCHEMA_STATUS" != "ok" ]]; then
+  echo "Database schema verification failed: expected flyway_schema_history and calendar_sync_event."
+  exit 1
+fi
 
 echo "Container is healthy."
 docker compose -f "$COMPOSE_FILE" ps
