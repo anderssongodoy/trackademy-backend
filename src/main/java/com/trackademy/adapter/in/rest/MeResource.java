@@ -6,6 +6,8 @@ import com.trackademy.adapter.in.rest.dto.ActualizarPerfilPersonalRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarDatosCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarHorarioCursoResponse;
+import com.trackademy.adapter.in.rest.dto.CalendarSyncExecutionResponse;
+import com.trackademy.adapter.in.rest.dto.CalendarSyncPlanResponse;
 import com.trackademy.adapter.in.rest.dto.MiCalendarioEventoResponse;
 import com.trackademy.adapter.in.rest.dto.MiCalendarSyncAccountResponse;
 import com.trackademy.adapter.in.rest.dto.MiCursoResponse;
@@ -16,9 +18,12 @@ import com.trackademy.adapter.in.rest.dto.MiHorarioCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiPeriodoActualResponse;
 import com.trackademy.adapter.in.rest.dto.RegistrarNotaEvaluacionRequest;
 import com.trackademy.application.port.in.AuthUseCase;
+import com.trackademy.application.port.in.CalendarSyncUseCase;
 import com.trackademy.application.port.in.MeCommandUseCase;
 import com.trackademy.application.port.in.MeQueryUseCase;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -38,11 +43,18 @@ public class MeResource {
     private final MeQueryUseCase meQueryUseCase;
     private final MeCommandUseCase meCommandUseCase;
     private final AuthUseCase authUseCase;
+    private final CalendarSyncUseCase calendarSyncUseCase;
 
-    public MeResource(MeQueryUseCase meQueryUseCase, MeCommandUseCase meCommandUseCase, AuthUseCase authUseCase) {
+    public MeResource(
+            MeQueryUseCase meQueryUseCase,
+            MeCommandUseCase meCommandUseCase,
+            AuthUseCase authUseCase,
+            CalendarSyncUseCase calendarSyncUseCase
+    ) {
         this.meQueryUseCase = meQueryUseCase;
         this.meCommandUseCase = meCommandUseCase;
         this.authUseCase = authUseCase;
+        this.calendarSyncUseCase = calendarSyncUseCase;
     }
 
     @GET
@@ -197,6 +209,59 @@ public class MeResource {
                 .toList();
 
         return Response.ok(accounts).build();
+    }
+
+    @GET
+    @Path("/calendar-sync/google/plan")
+    public Response planSincronizacionGoogle(
+            @HeaderParam("Authorization") String authorization,
+            @QueryParam("from") LocalDate from,
+            @QueryParam("to") LocalDate to
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        return Response.ok(
+                CalendarSyncPlanResponse.from(
+                        calendarSyncUseCase.obtenerPlanGoogle(principal.get().email(), from, to)
+                )
+        ).build();
+    }
+
+    @POST
+    @Path("/calendar-sync/google/sync")
+    public Response sincronizarGoogle(
+            @HeaderParam("Authorization") String authorization,
+            @QueryParam("from") LocalDate from,
+            @QueryParam("to") LocalDate to
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        return Response.ok(
+                CalendarSyncExecutionResponse.SyncResponse.from(
+                        calendarSyncUseCase.sincronizarGoogle(principal.get().email(), from, to)
+                )
+        ).build();
+    }
+
+    @DELETE
+    @Path("/calendar-sync/google")
+    public Response desconectarGoogle(@HeaderParam("Authorization") String authorization) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        return Response.ok(
+                CalendarSyncExecutionResponse.DisconnectResponse.from(
+                        calendarSyncUseCase.desconectarGoogle(principal.get().email())
+                )
+        ).build();
     }
 
     @PUT
