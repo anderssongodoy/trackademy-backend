@@ -4,6 +4,7 @@ import com.trackademy.adapter.out.persistence.entity.CampusEntity;
 import com.trackademy.adapter.out.persistence.entity.CursoEntity;
 import com.trackademy.adapter.out.persistence.entity.PeriodoEntity;
 import com.trackademy.adapter.out.persistence.entity.PeriodoEventoEntity;
+import com.trackademy.adapter.out.persistence.entity.RecordatorioEventoEntity;
 import com.trackademy.adapter.out.persistence.entity.SilaboEntity;
 import com.trackademy.adapter.out.persistence.entity.SilaboEvaluacionEntity;
 import com.trackademy.adapter.out.persistence.entity.CalendarSyncAccountEntity;
@@ -12,11 +13,13 @@ import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoCursoEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoCursoHorarioEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEvaluacionEntity;
+import com.trackademy.adapter.out.persistence.entity.UsuarioTareaEntity;
 import com.trackademy.adapter.out.persistence.repository.CursoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.CalendarSyncAccountPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.CampusPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.PeriodoEventoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.PeriodoPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.RecordatorioEventoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.SilaboEvaluacionPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.SilaboPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPanacheRepository;
@@ -24,6 +27,7 @@ import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoCursoHora
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoCursoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoEvaluacionPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.UsuarioTareaPanacheRepository;
 import com.trackademy.application.port.out.MeQueryPort;
 import com.trackademy.domain.model.me.MiCalendarioEvento;
 import com.trackademy.domain.model.me.MiCalendarSyncAccount;
@@ -33,6 +37,8 @@ import com.trackademy.domain.model.me.MiEvaluacionCurso;
 import com.trackademy.domain.model.me.MiEvaluacionesCursoResumen;
 import com.trackademy.domain.model.me.MiHorarioCurso;
 import com.trackademy.domain.model.me.MiPeriodoActual;
+import com.trackademy.domain.model.me.MiRecordatorio;
+import com.trackademy.domain.model.me.MiTarea;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.math.BigDecimal;
@@ -59,6 +65,8 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
     private final UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository;
     private final UsuarioPeriodoCursoHorarioPanacheRepository usuarioPeriodoCursoHorarioRepository;
     private final UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository;
+    private final UsuarioTareaPanacheRepository usuarioTareaRepository;
+    private final RecordatorioEventoPanacheRepository recordatorioEventoRepository;
     private final CampusPanacheRepository campusRepository;
     private final CursoPanacheRepository cursoRepository;
     private final PeriodoPanacheRepository periodoRepository;
@@ -73,6 +81,8 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
             UsuarioPeriodoCursoPanacheRepository usuarioPeriodoCursoRepository,
             UsuarioPeriodoCursoHorarioPanacheRepository usuarioPeriodoCursoHorarioRepository,
             UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository,
+            UsuarioTareaPanacheRepository usuarioTareaRepository,
+            RecordatorioEventoPanacheRepository recordatorioEventoRepository,
             CampusPanacheRepository campusRepository,
             CursoPanacheRepository cursoRepository,
             PeriodoPanacheRepository periodoRepository,
@@ -86,6 +96,8 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
         this.usuarioPeriodoCursoRepository = usuarioPeriodoCursoRepository;
         this.usuarioPeriodoCursoHorarioRepository = usuarioPeriodoCursoHorarioRepository;
         this.usuarioPeriodoEvaluacionRepository = usuarioPeriodoEvaluacionRepository;
+        this.usuarioTareaRepository = usuarioTareaRepository;
+        this.recordatorioEventoRepository = recordatorioEventoRepository;
         this.campusRepository = campusRepository;
         this.cursoRepository = cursoRepository;
         this.periodoRepository = periodoRepository;
@@ -196,6 +208,65 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
     }
 
     @Override
+    public List<MiTarea> listarMisTareas(String email) {
+        Optional<ContextoActual> contextoOpt = obtenerContexto(email);
+        if (contextoOpt.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        ContextoActual contexto = contextoOpt.get();
+        Map<Long, UsuarioTareaEntity> tareasById = new HashMap<>();
+        for (UsuarioTareaEntity tarea : usuarioTareaRepository.listarPorUsuarioPeriodo(contexto.usuarioPeriodo().id)) {
+            tareasById.put(tarea.id, tarea);
+        }
+
+        Map<Long, RecordatorioEventoEntity> remindersByTaskId = new HashMap<>();
+        for (RecordatorioEventoEntity reminder : recordatorioEventoRepository.listarPorUsuarioPeriodo(
+                contexto.usuarioPeriodo().id,
+                OffsetDateTime.now().minusYears(1),
+                OffsetDateTime.now().plusYears(5)
+        )) {
+            if (reminder.usuarioTareaId != null
+                    && "pendiente".equalsIgnoreCase(reminder.estado)
+                    && !remindersByTaskId.containsKey(reminder.usuarioTareaId)) {
+                remindersByTaskId.put(reminder.usuarioTareaId, reminder);
+            }
+        }
+
+        return tareasById.values().stream()
+                .map(tarea -> toMiTarea(tarea, remindersByTaskId.get(tarea.id), contexto))
+                .sorted(Comparator
+                        .comparing(MiTarea::fechaVencimiento, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(MiTarea::createdAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+    }
+
+    @Override
+    public List<MiRecordatorio> listarMisRecordatorios(String email, LocalDate from, LocalDate to) {
+        Optional<ContextoActual> contextoOpt = obtenerContexto(email);
+        if (contextoOpt.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        ContextoActual contexto = contextoOpt.get();
+        OffsetDateTime inicio = (from != null ? from : LocalDate.now()).atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
+        OffsetDateTime fin = (to != null ? to : inicio.toLocalDate().plusDays(30))
+                .atTime(LocalTime.MAX)
+                .atOffset(OffsetDateTime.now().getOffset());
+
+        Map<Long, UsuarioTareaEntity> tareasById = new HashMap<>();
+        for (UsuarioTareaEntity tarea : usuarioTareaRepository.listarPorUsuarioPeriodo(contexto.usuarioPeriodo().id)) {
+            tareasById.put(tarea.id, tarea);
+        }
+
+        return recordatorioEventoRepository.listarPorUsuarioPeriodo(contexto.usuarioPeriodo().id, inicio, fin).stream()
+                .filter(item -> item.usuarioTareaId != null && "pendiente".equalsIgnoreCase(item.estado))
+                .map(item -> toMiRecordatorio(item, tareasById.get(item.usuarioTareaId), contexto))
+                .filter(item -> item != null)
+                .toList();
+    }
+
+    @Override
     public List<MiCalendarSyncAccount> listarSincronizacionesCalendario(String email) {
         Optional<UsuarioEntity> usuarioOpt = usuarioRepository.buscarPorEmail(email);
         if (usuarioOpt.isEmpty()) {
@@ -227,6 +298,10 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
         UsuarioPeriodoEntity usuarioPeriodo = usuarioPeriodoOpt.get();
         PeriodoEntity periodo = periodoRepository.findById(usuarioPeriodo.periodoId);
         List<UsuarioPeriodoCursoEntity> upcs = usuarioPeriodoCursoRepository.listarPorUsuarioPeriodo(usuarioPeriodo.id);
+        Map<Long, UsuarioPeriodoCursoEntity> upcById = new HashMap<>();
+        for (UsuarioPeriodoCursoEntity upc : upcs) {
+            upcById.put(upc.id, upc);
+        }
 
         Map<Long, CursoEntity> cursoById = new HashMap<>();
         if (!upcs.isEmpty()) {
@@ -250,7 +325,7 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
 
         CampusEntity campus = usuarioPeriodo.campusId == null ? null : campusRepository.findById(usuarioPeriodo.campusId);
 
-        return Optional.of(new ContextoActual(usuarioOpt.get(), usuarioPeriodo, campus, periodo, upcs, cursoById, horariosByUpc, evaluacionesByKey));
+        return Optional.of(new ContextoActual(usuarioOpt.get(), usuarioPeriodo, campus, periodo, upcs, upcById, cursoById, horariosByUpc, evaluacionesByKey));
     }
 
     private MiPeriodoActual toPeriodoActual(ContextoActual contexto) {
@@ -583,12 +658,61 @@ public class PostgresMeQueryAdapter implements MeQueryPort {
         );
     }
 
+    private MiTarea toMiTarea(UsuarioTareaEntity tarea, RecordatorioEventoEntity reminder, ContextoActual contexto) {
+        UsuarioPeriodoCursoEntity upc = tarea.usuarioPeriodoCursoId == null ? null : contexto.upcById().get(tarea.usuarioPeriodoCursoId);
+        CursoEntity curso = upc == null ? null : contexto.cursoById().get(upc.cursoId);
+
+        return new MiTarea(
+                tarea.id,
+                tarea.usuarioPeriodoId,
+                tarea.usuarioPeriodoCursoId,
+                upc == null ? null : upc.cursoId,
+                curso == null ? null : curso.codigo,
+                curso == null ? null : curso.nombre,
+                tarea.titulo,
+                tarea.descripcion,
+                tarea.tipo,
+                tarea.prioridad,
+                tarea.estado,
+                tarea.fechaVencimiento,
+                reminder == null ? null : reminder.fechaEnvio,
+                reminder == null ? null : reminder.canal,
+                tarea.completedAt,
+                tarea.createdAt,
+                tarea.updatedAt
+        );
+    }
+
+    private MiRecordatorio toMiRecordatorio(RecordatorioEventoEntity reminder, UsuarioTareaEntity tarea, ContextoActual contexto) {
+        if (tarea == null) {
+            return null;
+        }
+        UsuarioPeriodoCursoEntity upc = tarea.usuarioPeriodoCursoId == null ? null : contexto.upcById().get(tarea.usuarioPeriodoCursoId);
+        CursoEntity curso = upc == null ? null : contexto.cursoById().get(upc.cursoId);
+
+        return new MiRecordatorio(
+                reminder.id,
+                tarea.id,
+                tarea.usuarioPeriodoCursoId,
+                upc == null ? null : upc.cursoId,
+                curso == null ? null : curso.codigo,
+                curso == null ? null : curso.nombre,
+                tarea.titulo,
+                tarea.descripcion,
+                reminder.fechaEnvio,
+                reminder.canal,
+                reminder.estado,
+                "tarea"
+        );
+    }
+
     private record ContextoActual(
             UsuarioEntity usuario,
             UsuarioPeriodoEntity usuarioPeriodo,
             CampusEntity campus,
             PeriodoEntity periodo,
             List<UsuarioPeriodoCursoEntity> upcs,
+            Map<Long, UsuarioPeriodoCursoEntity> upcById,
             Map<Long, CursoEntity> cursoById,
             Map<Long, List<UsuarioPeriodoCursoHorarioEntity>> horariosByUpc,
             Map<String, UsuarioPeriodoEvaluacionEntity> evaluacionesByKey

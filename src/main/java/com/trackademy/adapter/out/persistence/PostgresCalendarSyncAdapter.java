@@ -18,6 +18,7 @@ import com.trackademy.domain.model.calendar.CalendarSyncPlanItem;
 import com.trackademy.domain.model.calendar.CalendarSyncableEvent;
 import com.trackademy.domain.model.me.MiCalendarioEvento;
 import com.trackademy.domain.model.me.MiPeriodoActual;
+import com.trackademy.domain.model.me.MiTarea;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -217,6 +218,8 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
             resolvedFrom = resolvedTo;
             resolvedTo = swap;
         }
+        final LocalDate finalResolvedFrom = resolvedFrom;
+        final LocalDate finalResolvedTo = resolvedTo;
 
         Optional<UsuarioEntity> usuarioOpt = usuarioRepository.buscarPorEmail(normalize(email));
         Optional<CalendarSyncAccountEntity> accountOpt = usuarioOpt.flatMap(usuario ->
@@ -226,6 +229,17 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
         List<CalendarSyncableEvent> localEvents = meQueryPort.listarCalendario(email, resolvedFrom, resolvedTo).stream()
                 .map(this::toSyncableEvent)
                 .filter(item -> item.sourceKey() != null && !item.sourceKey().isBlank())
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+
+        localEvents.addAll(
+                meQueryPort.listarMisTareas(email).stream()
+                        .filter(this::isSyncableTask)
+                        .map(this::toSyncableTaskEvent)
+                        .filter(item -> !item.startAt().toLocalDate().isBefore(finalResolvedFrom) && !item.startAt().toLocalDate().isAfter(finalResolvedTo))
+                        .toList()
+        );
+
+        localEvents = localEvents.stream()
                 .sorted(Comparator.comparing(CalendarSyncableEvent::startAt).thenComparing(CalendarSyncableEvent::sourceKey))
                 .toList();
 
@@ -385,6 +399,63 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                 courseName,
                 referenceCode
         );
+    }
+
+    private boolean isSyncableTask(MiTarea task) {
+        return task.fechaVencimiento() != null
+                && task.id() != null
+                && task.estado() != null
+                && !"cancelada".equalsIgnoreCase(task.estado())
+                && !"completada".equalsIgnoreCase(task.estado());
+    }
+
+    private CalendarSyncableEvent toSyncableTaskEvent(MiTarea task) {
+        String sourceKey = "tarea:" + task.id();
+        String sourceType = "tarea";
+        String title = safe(task.titulo());
+        String subtitle = buildTaskSubtitle(task);
+        String courseCode = safe(task.codigoCurso());
+        String referenceCode = "TAREA-" + task.id();
+        String sourceHash = sha256(String.join("|",
+                sourceKey,
+                sourceType,
+                title,
+                subtitle,
+                task.fechaVencimiento().toString(),
+                courseCode,
+                safe(task.prioridad()),
+                safe(task.tipo()),
+                safe(task.estado())
+        ));
+
+        return new CalendarSyncableEvent(
+                sourceKey,
+                sourceType,
+                sourceHash,
+                title,
+                subtitle,
+                task.fechaVencimiento().toLocalDate().atStartOfDay(),
+                task.fechaVencimiento().toLocalDate().atTime(23, 59),
+                true,
+                "tarea",
+                courseCode,
+                safe(task.nombreCurso()),
+                referenceCode
+        );
+    }
+
+    private String buildTaskSubtitle(MiTarea task) {
+        StringJoiner joiner = new StringJoiner(" · ");
+        if (task.nombreCurso() != null && !task.nombreCurso().isBlank()) {
+            joiner.add(task.nombreCurso());
+        }
+        if (task.descripcion() != null && !task.descripcion().isBlank()) {
+            joiner.add(task.descripcion());
+        }
+        if (task.prioridad() != null && !task.prioridad().isBlank()) {
+            joiner.add("Prioridad " + task.prioridad());
+        }
+        return joiner.toString();
     }
 
     private String resolveAccessToken(CalendarSyncAccountEntity account) {

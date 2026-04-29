@@ -8,6 +8,8 @@ import com.trackademy.domain.model.me.MiEvaluacionCurso;
 import com.trackademy.domain.model.me.MiEvaluacionesCursoResumen;
 import com.trackademy.domain.model.me.MiHorarioCurso;
 import com.trackademy.domain.model.me.MiPeriodoActual;
+import com.trackademy.domain.model.me.MiRecordatorio;
+import com.trackademy.domain.model.me.MiTarea;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -28,6 +30,10 @@ public interface MeQueryUseCase {
     MiEvaluacionesCursoResumen obtenerResumenEvaluaciones(String email, Long cursoId);
 
     List<MiCalendarioEvento> listarCalendario(String email, LocalDate from, LocalDate to);
+
+    List<MiTarea> listarMisTareas(String email);
+
+    List<MiRecordatorio> listarMisRecordatorios(String email, LocalDate from, LocalDate to);
 
     List<MiCalendarSyncAccount> listarSincronizacionesCalendario(String email);
 }

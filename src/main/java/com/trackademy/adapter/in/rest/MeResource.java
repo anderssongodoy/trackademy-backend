@@ -16,7 +16,10 @@ import com.trackademy.adapter.in.rest.dto.MiEvaluacionCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiEvaluacionesCursoResumenResponse;
 import com.trackademy.adapter.in.rest.dto.MiHorarioCursoResponse;
 import com.trackademy.adapter.in.rest.dto.MiPeriodoActualResponse;
+import com.trackademy.adapter.in.rest.dto.MiRecordatorioResponse;
+import com.trackademy.adapter.in.rest.dto.MiTareaResponse;
 import com.trackademy.adapter.in.rest.dto.RegistrarNotaEvaluacionRequest;
+import com.trackademy.adapter.in.rest.dto.GuardarTareaRequest;
 import com.trackademy.application.port.in.AuthUseCase;
 import com.trackademy.application.port.in.CalendarSyncUseCase;
 import com.trackademy.application.port.in.MeCommandUseCase;
@@ -209,6 +212,89 @@ public class MeResource {
                 .toList();
 
         return Response.ok(accounts).build();
+    }
+
+    @GET
+    @Path("/tareas")
+    public Response misTareas(@HeaderParam("Authorization") String authorization) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        List<MiTareaResponse> tareas = meQueryUseCase.listarMisTareas(principal.get().email()).stream()
+                .map(MiTareaResponse::from)
+                .toList();
+
+        return Response.ok(tareas).build();
+    }
+
+    @POST
+    @Path("/tareas")
+    public Response crearTarea(
+            @HeaderParam("Authorization") String authorization,
+            GuardarTareaRequest request
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        return Response.status(Response.Status.CREATED)
+                .entity(MiTareaResponse.from(meCommandUseCase.crearTarea(principal.get().email(), request.toCommand())))
+                .build();
+    }
+
+    @PUT
+    @Path("/tareas/{tareaId}")
+    public Response actualizarTarea(
+            @HeaderParam("Authorization") String authorization,
+            @PathParam("tareaId") Long tareaId,
+            GuardarTareaRequest request
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        return Response.ok(
+                MiTareaResponse.from(meCommandUseCase.actualizarTarea(principal.get().email(), tareaId, request.toCommand()))
+        ).build();
+    }
+
+    @DELETE
+    @Path("/tareas/{tareaId}")
+    public Response eliminarTarea(
+            @HeaderParam("Authorization") String authorization,
+            @PathParam("tareaId") Long tareaId
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        meCommandUseCase.eliminarTarea(principal.get().email(), tareaId);
+        return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/recordatorios")
+    public Response misRecordatorios(
+            @HeaderParam("Authorization") String authorization,
+            @QueryParam("from") LocalDate from,
+            @QueryParam("to") LocalDate to
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        List<MiRecordatorioResponse> reminders = meQueryUseCase
+                .listarMisRecordatorios(principal.get().email(), from, to).stream()
+                .map(MiRecordatorioResponse::from)
+                .toList();
+
+        return Response.ok(reminders).build();
     }
 
     @GET
