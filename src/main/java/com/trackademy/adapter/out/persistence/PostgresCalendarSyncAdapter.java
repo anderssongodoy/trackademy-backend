@@ -48,6 +48,7 @@ import java.util.StringJoiner;
 public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
 
     private static final Logger LOG = Logger.getLogger(PostgresCalendarSyncAdapter.class);
+    private static final int ERROR_MESSAGE_MAX_LENGTH = 255;
 
     private final MeQueryPort meQueryPort;
     private final UsuarioPanacheRepository usuarioRepository;
@@ -613,6 +614,16 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                     CalendarSyncEventEntity created = new CalendarSyncEventEntity();
                     created.calendarSyncAccountId = account.id;
                     created.sourceKey = item.sourceKey();
+                    created.sourceType = item.sourceType();
+                    created.sourceHash = item.currentHash();
+                    created.sourceStartAt = item.startAt();
+                    created.sourceEndAt = item.endAt();
+                    created.googleCalendarId = effectiveCalendarId(account);
+                    created.googleEventId = googleEventId;
+                    created.estado = "synced";
+                    created.errorMessage = null;
+                    created.lastSeenAt = OffsetDateTime.now();
+                    created.lastSyncedAt = OffsetDateTime.now();
                     calendarSyncEventRepository.persist(created);
                     return created;
                 });
@@ -654,11 +665,14 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                     created.sourceEndAt = item.endAt() != null ? item.endAt() : created.sourceStartAt;
                     created.googleCalendarId = effectiveCalendarId(account);
                     created.googleEventId = item.googleEventId();
+                    created.estado = "error";
+                    created.errorMessage = truncate(errorMessage, ERROR_MESSAGE_MAX_LENGTH);
+                    created.lastSeenAt = OffsetDateTime.now();
                     calendarSyncEventRepository.persist(created);
                     return created;
                 });
         mapping.estado = "error";
-        mapping.errorMessage = truncate(errorMessage, 500);
+        mapping.errorMessage = truncate(errorMessage, ERROR_MESSAGE_MAX_LENGTH);
         mapping.lastSeenAt = OffsetDateTime.now();
     }
 
