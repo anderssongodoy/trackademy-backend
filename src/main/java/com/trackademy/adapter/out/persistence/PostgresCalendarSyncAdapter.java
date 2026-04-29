@@ -34,6 +34,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -49,6 +51,7 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
 
     private static final Logger LOG = Logger.getLogger(PostgresCalendarSyncAdapter.class);
     private static final int ERROR_MESSAGE_MAX_LENGTH = 255;
+    private static final DateTimeFormatter GOOGLE_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
     private final MeQueryPort meQueryPort;
     private final UsuarioPanacheRepository usuarioRepository;
@@ -438,7 +441,7 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
         );
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IllegalStateException("Google no pudo crear el evento: " + response.statusCode());
+            throw new IllegalStateException(buildGoogleApiError("crear", response));
         }
 
         try {
@@ -468,7 +471,7 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
             return recreated;
         }
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IllegalStateException("Google no pudo actualizar el evento: " + response.statusCode());
+            throw new IllegalStateException(buildGoogleApiError("actualizar", response));
         }
 
         return item.googleEventId();
@@ -558,9 +561,9 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                 start.put("date", item.startAt().toLocalDate().toString());
                 end.put("date", item.endAt().toLocalDate().plusDays(1).toString());
             } else {
-                start.put("dateTime", item.startAt().toString());
+                start.put("dateTime", toGoogleDateTime(item.startAt()));
                 start.put("timeZone", defaultTimeZone);
-                end.put("dateTime", item.endAt().toString());
+                end.put("dateTime", toGoogleDateTime(item.endAt()));
                 end.put("timeZone", defaultTimeZone);
             }
             payload.put("start", start);
@@ -777,6 +780,20 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    private String toGoogleDateTime(LocalDateTime value) {
+        return value.atZone(ZoneId.of(defaultTimeZone))
+                .toOffsetDateTime()
+                .format(GOOGLE_DATE_TIME_FORMATTER);
+    }
+
+    private String buildGoogleApiError(String action, HttpResponse<String> response) {
+        String body = safe(response.body());
+        if (body.isBlank()) {
+            return "Google no pudo " + action + " el evento: " + response.statusCode();
+        }
+        return "Google no pudo " + action + " el evento: " + response.statusCode() + " - " + body;
     }
 
     private record SyncContext(
