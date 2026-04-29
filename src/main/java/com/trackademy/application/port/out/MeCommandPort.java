@@ -6,9 +6,11 @@ import com.trackademy.domain.model.me.ActualizarPerfilPersonalCommand;
 import com.trackademy.domain.model.me.ActualizarDatosCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoResult;
+import com.trackademy.domain.model.me.GuardarTareaCommand;
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
 import com.trackademy.domain.model.me.MiPeriodoActual;
+import com.trackademy.domain.model.me.MiTarea;
 import com.trackademy.domain.model.me.RegistrarNotaEvaluacionCommand;
 
 public interface MeCommandPort {
@@ -24,4 +26,10 @@ public interface MeCommandPort {
     ActualizarHorarioCursoResult actualizarHorarioCurso(String email, ActualizarHorarioCursoCommand command);
 
     MiEvaluacionCurso registrarNotaEvaluacion(String email, RegistrarNotaEvaluacionCommand command);
+
+    MiTarea crearTarea(String email, GuardarTareaCommand command);
+
+    MiTarea actualizarTarea(String email, Long tareaId, GuardarTareaCommand command);
+
+    void eliminarTarea(String email, Long tareaId);
 }

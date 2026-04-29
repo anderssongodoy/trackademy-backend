@@ -2,6 +2,7 @@ package com.trackademy.adapter.out.persistence;
 
 import com.trackademy.adapter.out.persistence.entity.CursoEntity;
 import com.trackademy.adapter.out.persistence.entity.PeriodoEntity;
+import com.trackademy.adapter.out.persistence.entity.RecordatorioEventoEntity;
 import com.trackademy.adapter.out.persistence.entity.SilaboEntity;
 import com.trackademy.adapter.out.persistence.entity.SilaboEvaluacionEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioEntity;
@@ -9,9 +10,11 @@ import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoCursoEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoCursoHorarioEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEvaluacionEntity;
+import com.trackademy.adapter.out.persistence.entity.UsuarioTareaEntity;
 import com.trackademy.adapter.out.persistence.repository.CursoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.CampusPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.PeriodoPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.RecordatorioEventoPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.SilaboEvaluacionPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.SilaboPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPanacheRepository;
@@ -20,6 +23,7 @@ import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoCursoPana
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoCursoConfianzaPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoEvaluacionPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.UsuarioTareaPanacheRepository;
 import com.trackademy.application.port.out.MeCommandPort;
 import com.trackademy.domain.model.me.ActualizarConfiguracionPeriodoCommand;
 import com.trackademy.domain.model.me.ActualizarPerfilAcademicoCommand;
@@ -27,9 +31,11 @@ import com.trackademy.domain.model.me.ActualizarPerfilPersonalCommand;
 import com.trackademy.domain.model.me.ActualizarDatosCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoCommand;
 import com.trackademy.domain.model.me.ActualizarHorarioCursoResult;
+import com.trackademy.domain.model.me.GuardarTareaCommand;
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
 import com.trackademy.domain.model.me.MiPeriodoActual;
+import com.trackademy.domain.model.me.MiTarea;
 import com.trackademy.domain.model.me.RegistrarNotaEvaluacionCommand;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
@@ -37,6 +43,7 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -54,6 +61,8 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
     private final UsuarioPeriodoCursoHorarioPanacheRepository horarioRepository;
     private final UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository;
     private final UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository;
+    private final UsuarioTareaPanacheRepository usuarioTareaRepository;
+    private final RecordatorioEventoPanacheRepository recordatorioEventoRepository;
     private final CampusPanacheRepository campusRepository;
     private final SilaboPanacheRepository silaboRepository;
     private final SilaboEvaluacionPanacheRepository silaboEvaluacionRepository;
@@ -67,6 +76,8 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
             UsuarioPeriodoCursoHorarioPanacheRepository horarioRepository,
             UsuarioPeriodoCursoConfianzaPanacheRepository confianzaRepository,
             UsuarioPeriodoEvaluacionPanacheRepository usuarioPeriodoEvaluacionRepository,
+            UsuarioTareaPanacheRepository usuarioTareaRepository,
+            RecordatorioEventoPanacheRepository recordatorioEventoRepository,
             CampusPanacheRepository campusRepository,
             SilaboPanacheRepository silaboRepository,
             SilaboEvaluacionPanacheRepository silaboEvaluacionRepository,
@@ -79,6 +90,8 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         this.horarioRepository = horarioRepository;
         this.confianzaRepository = confianzaRepository;
         this.usuarioPeriodoEvaluacionRepository = usuarioPeriodoEvaluacionRepository;
+        this.usuarioTareaRepository = usuarioTareaRepository;
+        this.recordatorioEventoRepository = recordatorioEventoRepository;
         this.campusRepository = campusRepository;
         this.silaboRepository = silaboRepository;
         this.silaboEvaluacionRepository = silaboEvaluacionRepository;
@@ -415,6 +428,54 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         );
     }
 
+    @Override
+    @Transactional
+    public MiTarea crearTarea(String email, GuardarTareaCommand command) {
+        ValidatedTaskContext context = validateTaskContext(email, null, command);
+
+        UsuarioTareaEntity entity = new UsuarioTareaEntity();
+        entity.usuarioPeriodoId = context.usuarioPeriodo().id;
+        entity.usuarioPeriodoCursoId = context.usuarioPeriodoCurso() == null ? null : context.usuarioPeriodoCurso().id;
+        applyTaskChanges(entity, context.command());
+        entity.externalSource = null;
+        entity.externalId = null;
+        entity.createdAt = OffsetDateTime.now();
+        entity.updatedAt = OffsetDateTime.now();
+        usuarioTareaRepository.persist(entity);
+
+        syncTaskReminder(entity, context.command());
+        return toMiTarea(entity, context.curso());
+    }
+
+    @Override
+    @Transactional
+    public MiTarea actualizarTarea(String email, Long tareaId, GuardarTareaCommand command) {
+        ValidatedTaskContext context = validateTaskContext(email, tareaId, command);
+        UsuarioTareaEntity entity = context.tareaExistente();
+        applyTaskChanges(entity, context.command());
+        entity.usuarioPeriodoCursoId = context.usuarioPeriodoCurso() == null ? null : context.usuarioPeriodoCurso().id;
+        entity.updatedAt = OffsetDateTime.now();
+
+        syncTaskReminder(entity, context.command());
+        return toMiTarea(entity, context.curso());
+    }
+
+    @Override
+    @Transactional
+    public void eliminarTarea(String email, Long tareaId) {
+        UsuarioEntity usuario = usuarioRepository.buscarPorEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos el usuario autenticado."));
+
+        UsuarioPeriodoEntity usuarioPeriodo = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuario.id)
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos un periodo activo para el usuario."));
+
+        UsuarioTareaEntity tarea = usuarioTareaRepository.buscarPorIdYUsuarioPeriodo(tareaId, usuarioPeriodo.id)
+                .orElseThrow(() -> new IllegalArgumentException("La tarea no pertenece al periodo actual del usuario."));
+
+        recordatorioEventoRepository.cancelarPendientesPorTarea(tarea.id);
+        usuarioTareaRepository.delete(tarea);
+    }
+
     private UsuarioPeriodoCursoEntity validarAccesoCurso(String email, Long usuarioPeriodoCursoId) {
         UsuarioEntity usuario = usuarioRepository.buscarPorEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("No encontramos el usuario autenticado."));
@@ -488,5 +549,176 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private ValidatedTaskContext validateTaskContext(String email, Long tareaId, GuardarTareaCommand command) {
+        if (command == null) {
+            throw new IllegalArgumentException("No llegaron datos para guardar la tarea.");
+        }
+
+        String titulo = limpiarTexto(command.titulo());
+        if (titulo == null || titulo.length() < 3) {
+            throw new IllegalArgumentException("La tarea debe tener un titulo de al menos 3 caracteres.");
+        }
+
+        String tipo = normalizeTaskType(command.tipo());
+        String prioridad = normalizePriority(command.prioridad());
+        String estado = normalizeTaskStatus(command.estado());
+
+        if (command.fechaRecordatorio() != null && command.fechaVencimiento() == null) {
+            throw new IllegalArgumentException("No puedes programar recordatorio sin fecha de vencimiento.");
+        }
+        if (command.fechaRecordatorio() != null && command.fechaVencimiento() != null
+                && command.fechaRecordatorio().isAfter(command.fechaVencimiento())) {
+            throw new IllegalArgumentException("El recordatorio no puede quedar despues del vencimiento.");
+        }
+
+        UsuarioEntity usuario = usuarioRepository.buscarPorEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos el usuario autenticado."));
+
+        UsuarioPeriodoEntity usuarioPeriodo = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuario.id)
+                .orElseThrow(() -> new IllegalArgumentException("No encontramos un periodo activo para el usuario."));
+
+        UsuarioPeriodoCursoEntity usuarioPeriodoCurso = null;
+        CursoEntity curso = null;
+        if (command.usuarioPeriodoCursoId() != null) {
+            usuarioPeriodoCurso = validarAccesoCurso(email, command.usuarioPeriodoCursoId());
+            curso = cursoRepository.findById(usuarioPeriodoCurso.cursoId);
+        }
+
+        UsuarioTareaEntity existente = null;
+        if (tareaId != null) {
+            existente = usuarioTareaRepository.buscarPorIdYUsuarioPeriodo(tareaId, usuarioPeriodo.id)
+                    .orElseThrow(() -> new IllegalArgumentException("La tarea no pertenece al periodo actual del usuario."));
+        }
+
+        GuardarTareaCommand normalizedCommand = new GuardarTareaCommand(
+                command.usuarioPeriodoCursoId(),
+                titulo,
+                limpiarTexto(command.descripcion()),
+                tipo,
+                prioridad,
+                estado,
+                command.fechaVencimiento(),
+                command.fechaRecordatorio(),
+                normalizeReminderChannel(command.canalRecordatorio())
+        );
+
+        return new ValidatedTaskContext(usuarioPeriodo, usuarioPeriodoCurso, curso, existente, normalizedCommand);
+    }
+
+    private void applyTaskChanges(UsuarioTareaEntity entity, GuardarTareaCommand command) {
+        entity.titulo = command.titulo();
+        entity.descripcion = command.descripcion();
+        entity.tipo = command.tipo();
+        entity.prioridad = command.prioridad();
+        entity.estado = command.estado();
+        entity.fechaVencimiento = command.fechaVencimiento();
+
+        if ("completada".equals(command.estado())) {
+            entity.completedAt = entity.completedAt != null ? entity.completedAt : OffsetDateTime.now();
+        } else {
+            entity.completedAt = null;
+        }
+    }
+
+    private void syncTaskReminder(UsuarioTareaEntity tarea, GuardarTareaCommand command) {
+        if ("cancelada".equals(tarea.estado) || "completada".equals(tarea.estado) || command.fechaRecordatorio() == null) {
+            recordatorioEventoRepository.cancelarPendientesPorTarea(tarea.id);
+            return;
+        }
+
+        RecordatorioEventoEntity reminder = recordatorioEventoRepository.buscarPendientePorTarea(tarea.id)
+                .orElseGet(() -> {
+                    RecordatorioEventoEntity created = new RecordatorioEventoEntity();
+                    created.usuarioPeriodoId = tarea.usuarioPeriodoId;
+                    created.usuarioTareaId = tarea.id;
+                    created.createdAt = OffsetDateTime.now();
+                    return created;
+                });
+
+        reminder.fechaEnvio = command.fechaRecordatorio();
+        reminder.canal = command.canalRecordatorio();
+        reminder.estado = "pendiente";
+        reminder.payloadJson = null;
+        if (reminder.id == null) {
+            recordatorioEventoRepository.persist(reminder);
+        }
+    }
+
+    private String normalizeTaskType(String value) {
+        String normalized = limpiarTexto(value);
+        if (normalized == null) {
+            return "tarea";
+        }
+        return switch (normalized.toLowerCase()) {
+            case "tarea", "entrega", "estudio", "otro" -> normalized.toLowerCase();
+            default -> throw new IllegalArgumentException("El tipo de tarea no es valido.");
+        };
+    }
+
+    private String normalizePriority(String value) {
+        String normalized = limpiarTexto(value);
+        if (normalized == null) {
+            return "media";
+        }
+        return switch (normalized.toLowerCase()) {
+            case "alta", "media", "baja" -> normalized.toLowerCase();
+            default -> throw new IllegalArgumentException("La prioridad de la tarea no es valida.");
+        };
+    }
+
+    private String normalizeTaskStatus(String value) {
+        String normalized = limpiarTexto(value);
+        if (normalized == null) {
+            return "pendiente";
+        }
+        return switch (normalized.toLowerCase()) {
+            case "pendiente", "en_progreso", "completada", "cancelada" -> normalized.toLowerCase();
+            default -> throw new IllegalArgumentException("El estado de la tarea no es valido.");
+        };
+    }
+
+    private String normalizeReminderChannel(String value) {
+        String normalized = limpiarTexto(value);
+        if (normalized == null) {
+            return "app";
+        }
+        return switch (normalized.toLowerCase()) {
+            case "app", "email", "sms" -> normalized.toLowerCase();
+            default -> throw new IllegalArgumentException("El canal del recordatorio no es valido.");
+        };
+    }
+
+    private MiTarea toMiTarea(UsuarioTareaEntity tarea, CursoEntity curso) {
+        RecordatorioEventoEntity reminder = recordatorioEventoRepository.buscarPendientePorTarea(tarea.id).orElse(null);
+        return new MiTarea(
+                tarea.id,
+                tarea.usuarioPeriodoId,
+                tarea.usuarioPeriodoCursoId,
+                curso == null ? null : curso.id,
+                curso == null ? null : curso.codigo,
+                curso == null ? null : curso.nombre,
+                tarea.titulo,
+                tarea.descripcion,
+                tarea.tipo,
+                tarea.prioridad,
+                tarea.estado,
+                tarea.fechaVencimiento,
+                reminder == null ? null : reminder.fechaEnvio,
+                reminder == null ? null : reminder.canal,
+                tarea.completedAt,
+                tarea.createdAt,
+                tarea.updatedAt
+        );
+    }
+
+    private record ValidatedTaskContext(
+            UsuarioPeriodoEntity usuarioPeriodo,
+            UsuarioPeriodoCursoEntity usuarioPeriodoCurso,
+            CursoEntity curso,
+            UsuarioTareaEntity tareaExistente,
+            GuardarTareaCommand command
+    ) {
     }
 }
