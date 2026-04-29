@@ -288,9 +288,7 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                 continue;
             }
 
-            String operation = previous.sourceHash != null && previous.sourceHash.equals(local.sourceHash())
-                    ? "noop"
-                    : "update";
+            String operation = resolveOperation(previous, local);
 
             items.add(new CalendarSyncPlanItem(
                     operation,
@@ -332,6 +330,23 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                 .comparing(CalendarSyncPlanItem::startAt, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(CalendarSyncPlanItem::sourceKey));
         return items;
+    }
+
+    private String resolveOperation(CalendarSyncEventEntity previous, CalendarSyncableEvent local) {
+        boolean hasRemoteEvent = previous.googleEventId != null && !previous.googleEventId.isBlank();
+        boolean isSynced = "synced".equalsIgnoreCase(previous.estado);
+
+        if (!hasRemoteEvent) {
+            return "create";
+        }
+
+        if (!isSynced) {
+            return "update";
+        }
+
+        return previous.sourceHash != null && previous.sourceHash.equals(local.sourceHash())
+                ? "noop"
+                : "update";
     }
 
     private CalendarSyncableEvent toSyncableEvent(MiCalendarioEvento event) {
