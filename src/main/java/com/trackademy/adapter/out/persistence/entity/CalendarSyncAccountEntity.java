@@ -33,7 +33,7 @@ public class CalendarSyncAccountEntity {
     public String calendarId;
 
     @Column(name = "sync_direction", nullable = false)
-    public String syncDirection;
+    public String syncDirection = "bidirectional";
 
     @Column(name = "access_token_encrypted")
     public String accessTokenEncrypted;
@@ -45,7 +45,7 @@ public class CalendarSyncAccountEntity {
     public OffsetDateTime tokenExpiresAt;
 
     @Column(name = "estado", nullable = false)
-    public String estado;
+    public String estado = "active";
 
     @Column(name = "last_sync_at")
     public OffsetDateTime lastSyncAt;

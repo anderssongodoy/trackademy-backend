@@ -54,6 +54,7 @@ public class PostgresAuthPersistenceAdapter implements AuthPersistencePort {
                     nuevo.usuarioId = usuario.id;
                     nuevo.provider = "google";
                     nuevo.syncDirection = "write";
+                    nuevo.estado = "active";
                     calendarSyncAccountRepository.persist(nuevo);
                     return nuevo;
                 });
