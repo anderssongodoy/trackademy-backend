@@ -11,7 +11,6 @@ import com.trackademy.domain.model.auth.GoogleOAuthTokenSet;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
-import java.time.OffsetDateTime;
 import java.util.Locale;
 
 @ApplicationScoped
@@ -69,7 +68,6 @@ public class PostgresAuthPersistenceAdapter implements AuthPersistencePort {
         }
         account.tokenExpiresAt = tokens.expiresAt();
         account.estado = "active";
-        account.lastSyncAt = OffsetDateTime.now();
     }
 
     private String normalize(String value) {
