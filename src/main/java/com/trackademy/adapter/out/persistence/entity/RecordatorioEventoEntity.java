@@ -6,7 +6,10 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -38,8 +41,9 @@ public class RecordatorioEventoEntity {
     @Column(name = "estado", nullable = false)
     public String estado;
 
-    @Column(name = "payload_json")
-    public String payloadJson;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "payload_json", columnDefinition = "jsonb")
+    public JsonNode payloadJson;
 
     @Column(name = "created_at", nullable = false)
     public OffsetDateTime createdAt;
