@@ -421,6 +421,7 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
         if (baseDate == null) {
             throw new IllegalStateException("La tarea sincronizable no tiene fecha base.");
         }
+        LocalDate localDate = toDefaultZoneLocalDate(baseDate);
 
         String sourceKey = "tarea:" + task.id();
         String sourceType = "tarea";
@@ -448,8 +449,8 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                 sourceHash,
                 title,
                 subtitle,
-                baseDate.toLocalDate().atStartOfDay(),
-                baseDate.toLocalDate().atTime(23, 59),
+                localDate.atStartOfDay(),
+                localDate.atTime(23, 59),
                 true,
                 reminderMinutesBefore,
                 "tarea",
@@ -920,6 +921,10 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
         return value.atZone(ZoneId.of(defaultTimeZone))
                 .toOffsetDateTime()
                 .format(GOOGLE_DATE_TIME_FORMATTER);
+    }
+
+    private LocalDate toDefaultZoneLocalDate(OffsetDateTime value) {
+        return value.atZoneSameInstant(ZoneId.of(defaultTimeZone)).toLocalDate();
     }
 
     private String buildGoogleApiError(String action, HttpResponse<String> response) {
