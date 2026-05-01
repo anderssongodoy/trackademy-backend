@@ -10,6 +10,7 @@ public record CalendarSyncPlanItem(
         String subtitle,
         LocalDateTime startAt,
         LocalDateTime endAt,
+        Integer reminderMinutesBefore,
         String courseCode,
         String referenceCode,
         String currentHash,
