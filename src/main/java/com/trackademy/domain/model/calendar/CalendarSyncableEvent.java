@@ -11,6 +11,7 @@ public record CalendarSyncableEvent(
         LocalDateTime startAt,
         LocalDateTime endAt,
         boolean allDay,
+        Integer reminderMinutesBefore,
         String origin,
         String courseCode,
         String courseName,
