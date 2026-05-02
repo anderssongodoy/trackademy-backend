@@ -402,6 +402,9 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         evaluacion.exonerado = Boolean.TRUE.equals(command.exonerado());
         evaluacion.esRezagado = Boolean.TRUE.equals(command.esRezagado());
         evaluacion.comentarios = limpiarTexto(command.comentarios());
+        if (evaluacion.estadoMigracion == null || evaluacion.estadoMigracion.isBlank()) {
+            evaluacion.estadoMigracion = "activa";
+        }
 
         if (evaluacion.id == null) {
             usuarioPeriodoEvaluacionRepository.persist(evaluacion);
