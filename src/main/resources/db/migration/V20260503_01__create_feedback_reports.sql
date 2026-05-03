@@ -24,7 +24,7 @@ CREATE TABLE feedback_report (
     CONSTRAINT feedback_estado_check CHECK (estado IN ('abierto', 'en_revision', 'resuelto', 'cerrado'))
 );
 
-CREATE INDEX idx_feedback_usuario_id ON feedback_report(usuario_id);
-CREATE INDEX idx_feedback_estado ON feedback_report(estado);
-CREATE INDEX idx_feedback_fecha ON feedback_report(fecha_reporte);
-CREATE INDEX idx_feedback_numero ON feedback_report(numero_reporte);
+CREATE INDEX IF NOT EXISTS idx_feedback_usuario_id ON feedback_report(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_estado ON feedback_report(estado);
+CREATE INDEX IF NOT EXISTS idx_feedback_fecha ON feedback_report(fecha_reporte);
+CREATE INDEX IF NOT EXISTS idx_feedback_numero ON feedback_report(numero_reporte);
