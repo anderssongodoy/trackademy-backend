@@ -54,27 +54,33 @@ public class FeedbackReportResource {
             }
 
             // Validar request
+            if (request == null) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity(ApiErrorResponse.validation("El body del reporte es requerido"))
+                        .build();
+            }
+
             if (request.tipo() == null || request.tipo().isEmpty()) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("El tipo de reporte es requerido")
+                        .entity(ApiErrorResponse.validation("El tipo de reporte es requerido"))
                         .build();
             }
 
             if (request.motivo() == null || request.motivo().isEmpty()) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("El motivo es requerido")
+                        .entity(ApiErrorResponse.validation("El motivo es requerido"))
                         .build();
             }
 
             if (request.descripcion() == null || request.descripcion().isEmpty()) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("La descripción es requerida")
+                        .entity(ApiErrorResponse.validation("La descripción es requerida"))
                         .build();
             }
 
             if (request.emailReportante() == null || !request.emailReportante().contains("@")) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("Email válido requerido")
+                        .entity(ApiErrorResponse.validation("Email válido requerido"))
                         .build();
             }
 
