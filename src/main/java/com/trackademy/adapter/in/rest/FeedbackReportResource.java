@@ -33,11 +33,25 @@ public class FeedbackReportResource {
     @Authenticated
     public Response crearReporte(@Context Principal principal, CreateFeedbackReportRequest request) {
         try {
-            LOG.info("Creando nuevo reporte de feedback para usuario: " + principal.getName());
+            if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+                LOG.warn("No se pudo obtener un principal autenticado válido para crear el reporte");
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity("Usuario no autenticado")
+                        .build();
+            }
 
-            // Obtener ID del usuario del token
-            // En Quarkus con OIDC, el sub claim es el ID del usuario
-            Long usuarioId = Long.parseLong(principal.getName());
+            String principalName = principal.getName();
+            LOG.info("Creando nuevo reporte de feedback para usuario: " + principalName);
+
+            Long usuarioId;
+            try {
+                usuarioId = Long.parseLong(principalName);
+            } catch (NumberFormatException e) {
+                LOG.warn("El identificador del principal autenticado no es numérico: " + principalName);
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity("Identidad de usuario inválida")
+                        .build();
+            }
 
             // Validar request
             if (request.tipo() == null || request.tipo().isEmpty()) {
