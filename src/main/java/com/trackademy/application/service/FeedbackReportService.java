@@ -43,8 +43,8 @@ public class FeedbackReportService implements FeedbackReportUseCase {
             try {
                 imagenUrl = imageUploadPort.uploadBase64Image(request.imagenBase64(), numeroReporte + ".jpg");
             } catch (Exception e) {
-                LOG.error("Error uploading image, continuing without it", e);
-                // Continuar sin imagen
+                LOG.error("Error uploading image for feedback report: " + numeroReporte, e);
+                throw new FeedbackImageUploadException("No pudimos subir la imagen. Intenta de nuevo.", e);
             }
         }
 

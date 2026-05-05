@@ -34,9 +34,9 @@ public class ImgbbImageUploadAdapter implements ImageUploadPort {
 
     @Override
     public String uploadBase64Image(String base64Image, String fileName) throws Exception {
-        if (imgbbApiKey == null || imgbbApiKey.isBlank()) {
-            LOG.warn("ImgBB API key no configurado, usando placeholder");
-            return "https://via.placeholder.com/300?text=" + URLEncoder.encode(fileName, StandardCharsets.UTF_8);
+        if (imgbbApiKey == null || imgbbApiKey.isBlank() || "dummy-test-key".equals(imgbbApiKey.trim())) {
+            LOG.warn("ImgBB API key no configurado");
+            throw new IOException("ImgBB API key is not configured");
         }
 
         try {

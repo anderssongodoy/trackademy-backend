@@ -11,6 +11,7 @@ import com.trackademy.adapter.out.persistence.repository.UsuarioPanacheRepositor
 import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoPanacheRepository;
 import com.trackademy.application.port.in.AuthUseCase;
 import com.trackademy.application.port.in.FeedbackReportUseCase;
+import com.trackademy.application.service.FeedbackImageUploadException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
@@ -76,7 +77,12 @@ public class FeedbackReportResource {
                         .build();
             }
 
-            CreateFeedbackReportRequest enrichedRequest = enrichRequest(request, usuario, principal.get().name());
+            CreateFeedbackReportRequest enrichedRequest = enrichRequest(
+                    request,
+                    usuario,
+                    principal.get().name(),
+                    principal.get().email()
+            );
 
             if (request.tipo() == null || request.tipo().isEmpty()) {
                 return Response.status(Response.Status.BAD_REQUEST)
@@ -106,6 +112,11 @@ public class FeedbackReportResource {
 
             return Response.status(Response.Status.CREATED)
                     .entity(response)
+                    .build();
+        } catch (FeedbackImageUploadException e) {
+            LOG.error("No se pudo subir la imagen del reporte de feedback", e);
+            return Response.status(Response.Status.BAD_GATEWAY)
+                    .entity(ApiErrorResponse.of("image_upload_failed", e.getMessage()))
                     .build();
         } catch (Exception e) {
             LOG.error("Error al crear reporte de feedback", e);
@@ -144,7 +155,12 @@ public class FeedbackReportResource {
         return usuario;
     }
 
-    private CreateFeedbackReportRequest enrichRequest(CreateFeedbackReportRequest request, UsuarioEntity usuario, String principalName) {
+    private CreateFeedbackReportRequest enrichRequest(
+            CreateFeedbackReportRequest request,
+            UsuarioEntity usuario,
+            String sessionName,
+            String sessionEmail
+    ) {
         UsuarioPeriodoEntity periodo = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuario.id).orElse(null);
         UserWhatsappLinkEntity whatsappLink = userWhatsappLinkRepository.buscarPorUsuarioId(usuario.id)
                 .filter(link -> Boolean.TRUE.equals(link.verified))
@@ -154,8 +170,8 @@ public class FeedbackReportResource {
                 request.tipo(),
                 request.motivo(),
                 request.descripcion(),
-                firstNonBlank(request.nombreReportante(), usuario.nombrePreferido, usuario.nombre, principalName, usuario.email),
-                firstNonBlank(request.emailReportante(), usuario.emailInstitucional, usuario.email),
+                firstNonBlank(sessionName, usuario.nombrePreferido, usuario.nombre, request.nombreReportante(), usuario.email),
+                firstNonBlank(sessionEmail, usuario.email, request.emailReportante(), usuario.emailInstitucional),
                 firstNonBlank(request.whatsappReportante(), whatsappLink == null ? null : whatsappLink.phoneNumber),
                 request.imagenBase64(),
                 request.cursoId(),
