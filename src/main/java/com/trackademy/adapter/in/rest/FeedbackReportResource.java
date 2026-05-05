@@ -3,6 +3,7 @@ package com.trackademy.adapter.in.rest;
 import com.trackademy.adapter.in.rest.dto.ApiErrorResponse;
 import com.trackademy.adapter.in.rest.dto.CreateFeedbackReportRequest;
 import com.trackademy.adapter.in.rest.dto.FeedbackReportResponse;
+import com.trackademy.adapter.out.persistence.entity.UsuarioEntity;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPanacheRepository;
 import com.trackademy.application.port.in.FeedbackReportUseCase;
 import io.quarkus.security.Authenticated;
@@ -12,6 +13,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.transaction.Transactional;
 import org.jboss.logging.Logger;
 
 import java.security.Principal;
@@ -36,6 +38,7 @@ public class FeedbackReportResource {
     @POST
     @Path("/reportes")
     @Authenticated
+    @Transactional
     public Response crearReporte(@Context Principal principal, CreateFeedbackReportRequest request) {
         try {
             if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
@@ -111,7 +114,20 @@ public class FeedbackReportResource {
             String email = principalName.trim().toLowerCase(Locale.ROOT);
             return usuarioRepository.buscarPorEmail(email)
                     .map(usuario -> usuario.id)
-                    .orElse(null);
+                    .orElseGet(() -> crearUsuarioMínimo(email, principalName));
         }
+    }
+
+    private Long crearUsuarioMínimo(String email, String nombre) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+
+        UsuarioEntity usuario = new UsuarioEntity();
+        usuario.email = email;
+        usuario.nombre = nombre;
+        usuarioRepository.persist(usuario);
+        usuarioRepository.flush();
+        return usuario.id;
     }
 }
