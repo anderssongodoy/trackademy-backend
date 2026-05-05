@@ -5,6 +5,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -60,10 +61,17 @@ public class ImgbbImageUploadAdapter implements ImageUploadPort {
                 throw new IOException("ImgBB upload failed with status " + response.statusCode());
             }
 
-            ImgbbResponse imgbbResponse = objectMapper.readValue(response.body(), ImgbbResponse.class);
-            if (imgbbResponse != null && Boolean.TRUE.equals(imgbbResponse.success) && imgbbResponse.data != null) {
-                LOG.info("Imagen subida a ImgBB: " + imgbbResponse.data.url);
-                return imgbbResponse.data.url;
+            JsonNode root = objectMapper.readTree(response.body());
+            if (root.path("success").asBoolean(false)) {
+                String url = firstText(
+                        root.at("/data/url"),
+                        root.at("/data/display_url"),
+                        root.at("/data/image/url")
+                );
+                if (url != null) {
+                    LOG.info("Imagen subida a ImgBB: " + url);
+                    return url;
+                }
             }
 
             throw new IOException("ImgBB upload failed: " + response.body());
@@ -73,26 +81,12 @@ public class ImgbbImageUploadAdapter implements ImageUploadPort {
         }
     }
 
-    // DTOs for parsing ImgBB response
-    public static class ImgbbResponse {
-        public Boolean success;
-        public Integer status_code;
-        public ImgbbData data;
-
-        public ImgbbResponse() {}
-
-        public static class ImgbbData {
-            public String id;
-            public String url;
-            public String delete_url;
-            public String image;
-            public String medium;
-            public String thumb;
-            public String medium_url;
-            public String thumb_url;
-            public String image_url;
-
-            public ImgbbData() {}
+    private String firstText(JsonNode... nodes) {
+        for (JsonNode node : nodes) {
+            if (node != null && node.isTextual() && !node.asText().isBlank()) {
+                return node.asText();
+            }
         }
+        return null;
     }
 }
