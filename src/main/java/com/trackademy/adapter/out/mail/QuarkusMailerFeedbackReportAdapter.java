@@ -14,13 +14,16 @@ public class QuarkusMailerFeedbackReportAdapter implements FeedbackReportEmailPo
     private static final Logger LOG = Logger.getLogger(QuarkusMailerFeedbackReportAdapter.class);
 
     private final Mailer mailer;
+    private final String mailFrom;
     private final String emailDestino;
 
     public QuarkusMailerFeedbackReportAdapter(
             Mailer mailer,
+            @ConfigProperty(name = "quarkus.mailer.from") String mailFrom,
             @ConfigProperty(name = "app.feedback.email.destino", defaultValue = "soporte@trackademy.com") String emailDestino
     ) {
         this.mailer = mailer;
+        this.mailFrom = mailFrom;
         this.emailDestino = emailDestino;
     }
 
@@ -30,7 +33,7 @@ public class QuarkusMailerFeedbackReportAdapter implements FeedbackReportEmailPo
         String cuerpo = construirCuerpoCorreo(report);
 
         Mail mail = new Mail()
-                .setFrom("noreply@trackademy.com")
+                .setFrom(mailFrom)
                 .addTo(emailDestino)
                 .setSubject(asunto)
                 .setHtml(cuerpo)
