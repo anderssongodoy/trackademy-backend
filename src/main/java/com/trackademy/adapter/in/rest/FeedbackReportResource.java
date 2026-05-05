@@ -3,11 +3,16 @@ package com.trackademy.adapter.in.rest;
 import com.trackademy.adapter.in.rest.dto.ApiErrorResponse;
 import com.trackademy.adapter.in.rest.dto.CreateFeedbackReportRequest;
 import com.trackademy.adapter.in.rest.dto.FeedbackReportResponse;
+import com.trackademy.adapter.out.persistence.entity.UserWhatsappLinkEntity;
 import com.trackademy.adapter.out.persistence.entity.UsuarioEntity;
+import com.trackademy.adapter.out.persistence.entity.UsuarioPeriodoEntity;
+import com.trackademy.adapter.out.persistence.repository.UserWhatsappLinkPanacheRepository;
 import com.trackademy.adapter.out.persistence.repository.UsuarioPanacheRepository;
+import com.trackademy.adapter.out.persistence.repository.UsuarioPeriodoPanacheRepository;
+import com.trackademy.application.port.in.AuthUseCase;
 import com.trackademy.application.port.in.FeedbackReportUseCase;
-import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -16,9 +21,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.transaction.Transactional;
 import org.jboss.logging.Logger;
 
-import java.security.Principal;
 import java.util.Locale;
-import jakarta.ws.rs.core.Context;
 
 @Path("/api/v1/feedback")
 @Produces(MediaType.APPLICATION_JSON)
@@ -28,43 +31,52 @@ public class FeedbackReportResource {
     private static final Logger LOG = Logger.getLogger(FeedbackReportResource.class);
 
     private final FeedbackReportUseCase feedbackReportUseCase;
+    private final AuthUseCase authUseCase;
     private final UsuarioPanacheRepository usuarioRepository;
+    private final UsuarioPeriodoPanacheRepository usuarioPeriodoRepository;
+    private final UserWhatsappLinkPanacheRepository userWhatsappLinkRepository;
 
-    public FeedbackReportResource(FeedbackReportUseCase feedbackReportUseCase, UsuarioPanacheRepository usuarioRepository) {
+    public FeedbackReportResource(
+            FeedbackReportUseCase feedbackReportUseCase,
+            AuthUseCase authUseCase,
+            UsuarioPanacheRepository usuarioRepository,
+            UsuarioPeriodoPanacheRepository usuarioPeriodoRepository,
+            UserWhatsappLinkPanacheRepository userWhatsappLinkRepository
+    ) {
         this.feedbackReportUseCase = feedbackReportUseCase;
+        this.authUseCase = authUseCase;
         this.usuarioRepository = usuarioRepository;
+        this.usuarioPeriodoRepository = usuarioPeriodoRepository;
+        this.userWhatsappLinkRepository = userWhatsappLinkRepository;
     }
 
     @POST
     @Path("/reportes")
-    @Authenticated
     @Transactional
-    public Response crearReporte(@Context Principal principal, CreateFeedbackReportRequest request) {
+    public Response crearReporte(@HeaderParam("Authorization") String authorization, CreateFeedbackReportRequest request) {
         try {
-            if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
-                LOG.warn("No se pudo obtener un principal autenticado válido para crear el reporte");
-                return Response.status(Response.Status.UNAUTHORIZED)
-                        .entity("Usuario no autenticado")
-                        .build();
-            }
-
-            String principalName = principal.getName();
-            LOG.info("Creando nuevo reporte de feedback para usuario: " + principalName);
-
-            Long usuarioId = resolveUsuarioId(principalName);
-            if (usuarioId == null) {
-                LOG.warn("No se pudo resolver usuarioId para principal: " + principalName);
-                return Response.status(Response.Status.UNAUTHORIZED)
-                        .entity(ApiErrorResponse.unauthorized("Identidad de usuario inválida"))
-                        .build();
-            }
-
-            // Validar request
             if (request == null) {
                 return Response.status(Response.Status.BAD_REQUEST)
                         .entity(ApiErrorResponse.validation("El body del reporte es requerido"))
                         .build();
             }
+
+            var principal = authUseCase.authenticate(authorization);
+            if (principal.isEmpty()) {
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity(ApiErrorResponse.unauthorized("Usuario no autenticado"))
+                        .build();
+            }
+
+            UsuarioEntity usuario = resolveUsuario(principal.get().email(), principal.get().name());
+            if (usuario == null || usuario.id == null) {
+                LOG.warn("No se pudo resolver usuarioId para email: " + principal.get().email());
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity(ApiErrorResponse.unauthorized("Identidad de usuario invalida"))
+                        .build();
+            }
+
+            CreateFeedbackReportRequest enrichedRequest = enrichRequest(request, usuario, principal.get().name());
 
             if (request.tipo() == null || request.tipo().isEmpty()) {
                 return Response.status(Response.Status.BAD_REQUEST)
@@ -84,13 +96,13 @@ public class FeedbackReportResource {
                         .build();
             }
 
-            if (request.emailReportante() == null || !request.emailReportante().contains("@")) {
+            if (enrichedRequest.emailReportante() == null || !enrichedRequest.emailReportante().contains("@")) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity(ApiErrorResponse.validation("Email válido requerido"))
+                        .entity(ApiErrorResponse.validation("No pudimos resolver el email del usuario autenticado"))
                         .build();
             }
 
-            FeedbackReportResponse response = feedbackReportUseCase.crearReporte(usuarioId, request);
+            FeedbackReportResponse response = feedbackReportUseCase.crearReporte(usuario.id, enrichedRequest);
 
             return Response.status(Response.Status.CREATED)
                     .entity(response)
@@ -103,22 +115,23 @@ public class FeedbackReportResource {
         }
     }
 
-    private Long resolveUsuarioId(String principalName) {
-        if (principalName == null || principalName.isBlank()) {
+    private UsuarioEntity resolveUsuario(String email, String name) {
+        String normalizedEmail = normalize(email);
+        if (normalizedEmail == null) {
             return null;
         }
 
-        try {
-            return Long.parseLong(principalName);
-        } catch (NumberFormatException ignored) {
-            String email = principalName.trim().toLowerCase(Locale.ROOT);
-            return usuarioRepository.buscarPorEmail(email)
-                    .map(usuario -> usuario.id)
-                    .orElseGet(() -> crearUsuarioMínimo(email, principalName));
+        UsuarioEntity usuario = usuarioRepository.buscarPorEmail(normalizedEmail)
+                .orElseGet(() -> crearUsuarioMinimo(normalizedEmail, name));
+
+        if (isBlank(usuario.nombre) && !isBlank(name)) {
+            usuario.nombre = name.trim();
         }
+
+        return usuario;
     }
 
-    private Long crearUsuarioMínimo(String email, String nombre) {
+    private UsuarioEntity crearUsuarioMinimo(String email, String nombre) {
         if (email == null || email.isBlank()) {
             return null;
         }
@@ -128,6 +141,47 @@ public class FeedbackReportResource {
         usuario.nombre = nombre;
         usuarioRepository.persist(usuario);
         usuarioRepository.flush();
-        return usuario.id;
+        return usuario;
+    }
+
+    private CreateFeedbackReportRequest enrichRequest(CreateFeedbackReportRequest request, UsuarioEntity usuario, String principalName) {
+        UsuarioPeriodoEntity periodo = usuarioPeriodoRepository.buscarUltimoPorUsuario(usuario.id).orElse(null);
+        UserWhatsappLinkEntity whatsappLink = userWhatsappLinkRepository.buscarPorUsuarioId(usuario.id)
+                .filter(link -> Boolean.TRUE.equals(link.verified))
+                .orElse(null);
+
+        return new CreateFeedbackReportRequest(
+                request.tipo(),
+                request.motivo(),
+                request.descripcion(),
+                firstNonBlank(request.nombreReportante(), usuario.nombrePreferido, usuario.nombre, principalName, usuario.email),
+                firstNonBlank(request.emailReportante(), usuario.emailInstitucional, usuario.email),
+                firstNonBlank(request.whatsappReportante(), whatsappLink == null ? null : whatsappLink.phoneNumber),
+                request.imagenBase64(),
+                request.cursoId(),
+                request.carreraId() != null ? request.carreraId() : (periodo == null ? null : periodo.carreraId),
+                request.ciclo() != null ? request.ciclo() : (periodo == null ? null : periodo.cicloActual),
+                request.paginaActual()
+        );
+    }
+
+    private String normalize(String value) {
+        if (isBlank(value)) {
+            return null;
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }
