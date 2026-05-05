@@ -39,9 +39,9 @@ public class FeedbackReportService implements FeedbackReportUseCase {
 
         // Procesar imagen si se envió
         String imagenUrl = null;
-        if (request.imagenUrl() != null && !request.imagenUrl().isEmpty()) {
+        if (request.imagenBase64() != null && !request.imagenBase64().isEmpty()) {
             try {
-                imagenUrl = imageUploadPort.uploadBase64Image(request.imagenUrl(), numeroReporte + ".jpg");
+                imagenUrl = imageUploadPort.uploadBase64Image(request.imagenBase64(), numeroReporte + ".jpg");
             } catch (Exception e) {
                 LOG.error("Error uploading image, continuing without it", e);
                 // Continuar sin imagen
