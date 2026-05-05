@@ -1,5 +1,6 @@
 package com.trackademy.adapter.in.rest;
 
+import com.trackademy.adapter.in.rest.dto.ApiErrorResponse;
 import com.trackademy.adapter.in.rest.dto.CreateFeedbackReportRequest;
 import com.trackademy.adapter.in.rest.dto.FeedbackReportResponse;
 import com.trackademy.application.port.in.FeedbackReportUseCase;
