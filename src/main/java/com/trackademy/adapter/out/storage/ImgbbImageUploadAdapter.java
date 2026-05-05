@@ -14,6 +14,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 @ApplicationScoped
 public class ImgbbImageUploadAdapter implements ImageUploadPort {
@@ -26,9 +27,9 @@ public class ImgbbImageUploadAdapter implements ImageUploadPort {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ImgbbImageUploadAdapter(
-            @ConfigProperty(name = "app.upload.imgbb.api-key", defaultValue = "") String imgbbApiKey
+            @ConfigProperty(name = "app.upload.imgbb.api-key") Optional<String> imgbbApiKey
     ) {
-        this.imgbbApiKey = imgbbApiKey;
+        this.imgbbApiKey = imgbbApiKey.orElse("");
         this.httpClient = HttpClient.newHttpClient();
     }
 
