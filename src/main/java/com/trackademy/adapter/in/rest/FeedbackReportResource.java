@@ -3,6 +3,7 @@ package com.trackademy.adapter.in.rest;
 import com.trackademy.adapter.in.rest.dto.ApiErrorResponse;
 import com.trackademy.adapter.in.rest.dto.CreateFeedbackReportRequest;
 import com.trackademy.adapter.in.rest.dto.FeedbackReportResponse;
+import com.trackademy.adapter.out.persistence.repository.UsuarioPanacheRepository;
 import com.trackademy.application.port.in.FeedbackReportUseCase;
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.Consumes;
@@ -14,6 +15,7 @@ import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 
 import java.security.Principal;
+import java.util.Locale;
 import jakarta.ws.rs.core.Context;
 
 @Path("/api/v1/feedback")
@@ -24,9 +26,11 @@ public class FeedbackReportResource {
     private static final Logger LOG = Logger.getLogger(FeedbackReportResource.class);
 
     private final FeedbackReportUseCase feedbackReportUseCase;
+    private final UsuarioPanacheRepository usuarioRepository;
 
-    public FeedbackReportResource(FeedbackReportUseCase feedbackReportUseCase) {
+    public FeedbackReportResource(FeedbackReportUseCase feedbackReportUseCase, UsuarioPanacheRepository usuarioRepository) {
         this.feedbackReportUseCase = feedbackReportUseCase;
+        this.usuarioRepository = usuarioRepository;
     }
 
     @POST
@@ -44,13 +48,11 @@ public class FeedbackReportResource {
             String principalName = principal.getName();
             LOG.info("Creando nuevo reporte de feedback para usuario: " + principalName);
 
-            Long usuarioId;
-            try {
-                usuarioId = Long.parseLong(principalName);
-            } catch (NumberFormatException e) {
-                LOG.warn("El identificador del principal autenticado no es numérico: " + principalName);
+            Long usuarioId = resolveUsuarioId(principalName);
+            if (usuarioId == null) {
+                LOG.warn("No se pudo resolver usuarioId para principal: " + principalName);
                 return Response.status(Response.Status.UNAUTHORIZED)
-                        .entity("Identidad de usuario inválida")
+                        .entity(ApiErrorResponse.unauthorized("Identidad de usuario inválida"))
                         .build();
             }
 
@@ -95,6 +97,21 @@ public class FeedbackReportResource {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity("Error al procesar el reporte")
                     .build();
+        }
+    }
+
+    private Long resolveUsuarioId(String principalName) {
+        if (principalName == null || principalName.isBlank()) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(principalName);
+        } catch (NumberFormatException ignored) {
+            String email = principalName.trim().toLowerCase(Locale.ROOT);
+            return usuarioRepository.buscarPorEmail(email)
+                    .map(usuario -> usuario.id)
+                    .orElse(null);
         }
     }
 }
