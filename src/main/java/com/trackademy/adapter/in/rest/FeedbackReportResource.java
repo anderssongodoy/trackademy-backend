@@ -34,34 +34,54 @@ public class FeedbackReportResource {
     @Authenticated
     public Response crearReporte(@Context Principal principal, CreateFeedbackReportRequest request) {
         try {
-            LOG.info("Creando nuevo reporte de feedback para usuario: " + principal.getName());
+            if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+                LOG.warn("No se pudo obtener un principal autenticado válido para crear el reporte");
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity("Usuario no autenticado")
+                        .build();
+            }
 
-            // Obtener ID del usuario del token
-            // En Quarkus con OIDC, el sub claim es el ID del usuario
-            Long usuarioId = Long.parseLong(principal.getName());
+            String principalName = principal.getName();
+            LOG.info("Creando nuevo reporte de feedback para usuario: " + principalName);
+
+            Long usuarioId;
+            try {
+                usuarioId = Long.parseLong(principalName);
+            } catch (NumberFormatException e) {
+                LOG.warn("El identificador del principal autenticado no es numérico: " + principalName);
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity("Identidad de usuario inválida")
+                        .build();
+            }
 
             // Validar request
+            if (request == null) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity(ApiErrorResponse.validation("El body del reporte es requerido"))
+                        .build();
+            }
+
             if (request.tipo() == null || request.tipo().isEmpty()) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("El tipo de reporte es requerido")
+                        .entity(ApiErrorResponse.validation("El tipo de reporte es requerido"))
                         .build();
             }
 
             if (request.motivo() == null || request.motivo().isEmpty()) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("El motivo es requerido")
+                        .entity(ApiErrorResponse.validation("El motivo es requerido"))
                         .build();
             }
 
             if (request.descripcion() == null || request.descripcion().isEmpty()) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("La descripción es requerida")
+                        .entity(ApiErrorResponse.validation("La descripción es requerida"))
                         .build();
             }
 
             if (request.emailReportante() == null || !request.emailReportante().contains("@")) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("Email válido requerido")
+                        .entity(ApiErrorResponse.validation("Email válido requerido"))
                         .build();
             }
 

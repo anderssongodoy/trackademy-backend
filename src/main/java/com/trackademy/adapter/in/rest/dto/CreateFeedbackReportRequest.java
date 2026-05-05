@@ -9,7 +9,7 @@ public record CreateFeedbackReportRequest(
         String nombreReportante,
         String emailReportante,
         String whatsappReportante,
-        String imagenUrl,
+        String imagenBase64,
         Long cursoId,
         Long carreraId,
         Integer ciclo,

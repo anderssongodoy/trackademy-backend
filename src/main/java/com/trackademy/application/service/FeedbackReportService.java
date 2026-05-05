@@ -87,10 +87,13 @@ public class FeedbackReportService implements FeedbackReportUseCase {
     }
 
     private String generarNumeroReporte() {
-        // Formato: REP-YYYYMMdd-XXXX (ej: REP-20260503-a1b2)
+        // Formato: REP-YYYYMMdd-XXXXXXXXXXXX (ej: REP-20260503-A1B2C3D4E5F6)
         String timestamp = java.time.LocalDate.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String randomSuffix = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        String randomSuffix = UUID.randomUUID().toString()
+                .replace("-", "")
+                .substring(0, 12)
+                .toUpperCase();
         return "REP-" + timestamp + "-" + randomSuffix;
     }
 
