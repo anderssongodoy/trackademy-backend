@@ -293,6 +293,7 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                         local.subtitle(),
                         local.startAt(),
                         local.endAt(),
+                        local.reminderMinutesBefore(),
                         local.courseCode(),
                         local.referenceCode(),
                         local.sourceHash(),
@@ -312,6 +313,7 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                     local.subtitle(),
                     local.startAt(),
                     local.endAt(),
+                    local.reminderMinutesBefore(),
                     local.courseCode(),
                     local.referenceCode(),
                     local.sourceHash(),
@@ -332,6 +334,7 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                     null,
                     previous.sourceStartAt,
                     previous.sourceEndAt,
+                    null,
                     null,
                     null,
                     null,
@@ -394,6 +397,7 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                 event.inicio(),
                 event.fin(),
                 event.todoElDia(),
+                null,
                 safe(event.origen()),
                 courseCode,
                 courseName,
@@ -410,22 +414,33 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
     }
 
     private CalendarSyncableEvent toSyncableTaskEvent(MiTarea task) {
+        boolean reminderOnly = "recordatorio".equalsIgnoreCase(task.tipo());
+        OffsetDateTime baseDate = reminderOnly
+                ? firstNonNull(task.fechaRecordatorio(), task.fechaVencimiento())
+                : task.fechaVencimiento();
+        if (baseDate == null) {
+            throw new IllegalStateException("La tarea sincronizable no tiene fecha base.");
+        }
+        LocalDate localDate = toDefaultZoneLocalDate(baseDate);
+
         String sourceKey = "tarea:" + task.id();
         String sourceType = "tarea";
         String title = safe(task.titulo());
         String subtitle = buildTaskSubtitle(task);
         String courseCode = safe(task.codigoCurso());
         String referenceCode = "TAREA-" + task.id();
+        Integer reminderMinutesBefore = calculateReminderMinutesBefore(task, reminderOnly);
         String sourceHash = sha256(String.join("|",
                 sourceKey,
                 sourceType,
                 title,
                 subtitle,
-                task.fechaVencimiento().toString(),
+                baseDate.toString(),
                 courseCode,
                 safe(task.prioridad()),
                 safe(task.tipo()),
-                safe(task.estado())
+                safe(task.estado()),
+                reminderMinutesBefore == null ? "" : reminderMinutesBefore.toString()
         ));
 
         return new CalendarSyncableEvent(
@@ -434,9 +449,10 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                 sourceHash,
                 title,
                 subtitle,
-                task.fechaVencimiento().toLocalDate().atStartOfDay(),
-                task.fechaVencimiento().toLocalDate().atTime(23, 59),
+                localDate.atStartOfDay(),
+                localDate.atTime(23, 59),
                 true,
+                reminderMinutesBefore,
                 "tarea",
                 courseCode,
                 safe(task.nombreCurso()),
@@ -667,6 +683,7 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
             }
             extended.put("private", privateProps);
             payload.put("extendedProperties", extended);
+            payload.put("reminders", buildGoogleReminders(item));
 
             return objectMapper.writeValueAsString(payload);
         } catch (Exception error) {
@@ -694,6 +711,22 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                 && item.endAt() != null
                 && item.startAt().toLocalTime().equals(LocalTime.MIN)
                 && item.endAt().toLocalTime().equals(LocalTime.of(23, 59));
+    }
+
+    private Map<String, Object> buildGoogleReminders(CalendarSyncPlanItem item) {
+        Map<String, Object> reminders = new LinkedHashMap<>();
+        reminders.put("useDefault", false);
+
+        if (item.reminderMinutesBefore() != null && item.reminderMinutesBefore() > 0) {
+            List<Map<String, Object>> overrides = new ArrayList<>();
+            Map<String, Object> popup = new LinkedHashMap<>();
+            popup.put("method", "popup");
+            popup.put("minutes", item.reminderMinutesBefore());
+            overrides.add(popup);
+            reminders.put("overrides", overrides);
+        }
+
+        return reminders;
     }
 
     private void upsertMapping(CalendarSyncAccountEntity account, CalendarSyncPlanItem item, String googleEventId) {
@@ -861,6 +894,22 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
                 .replaceAll("(^-+|-+$)", "");
     }
 
+    private OffsetDateTime firstNonNull(OffsetDateTime first, OffsetDateTime second) {
+        return first != null ? first : second;
+    }
+
+    private Integer calculateReminderMinutesBefore(MiTarea task, boolean reminderOnly) {
+        if (reminderOnly || task.fechaRecordatorio() == null || task.fechaVencimiento() == null) {
+            return null;
+        }
+
+        long minutes = java.time.Duration.between(task.fechaRecordatorio(), task.fechaVencimiento()).toMinutes();
+        if (minutes <= 0 || minutes > 40_320) {
+            return null;
+        }
+        return (int) minutes;
+    }
+
     private String truncate(String value, int maxLength) {
         if (value == null || value.length() <= maxLength) {
             return value;
@@ -872,6 +921,10 @@ public class PostgresCalendarSyncAdapter implements CalendarSyncPort {
         return value.atZone(ZoneId.of(defaultTimeZone))
                 .toOffsetDateTime()
                 .format(GOOGLE_DATE_TIME_FORMATTER);
+    }
+
+    private LocalDate toDefaultZoneLocalDate(OffsetDateTime value) {
+        return value.atZoneSameInstant(ZoneId.of(defaultTimeZone)).toLocalDate();
     }
 
     private String buildGoogleApiError(String action, HttpResponse<String> response) {
