@@ -402,6 +402,9 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         evaluacion.exonerado = Boolean.TRUE.equals(command.exonerado());
         evaluacion.esRezagado = Boolean.TRUE.equals(command.esRezagado());
         evaluacion.comentarios = limpiarTexto(command.comentarios());
+        if (evaluacion.estadoMigracion == null || evaluacion.estadoMigracion.isBlank()) {
+            evaluacion.estadoMigracion = "activa";
+        }
 
         if (evaluacion.id == null) {
             usuarioPeriodoEvaluacionRepository.persist(evaluacion);
@@ -565,12 +568,12 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         String prioridad = normalizePriority(command.prioridad());
         String estado = normalizeTaskStatus(command.estado());
 
-        if (command.fechaRecordatorio() != null && command.fechaVencimiento() == null) {
-            throw new IllegalArgumentException("No puedes programar recordatorio sin fecha de vencimiento.");
-        }
         if (command.fechaRecordatorio() != null && command.fechaVencimiento() != null
                 && command.fechaRecordatorio().isAfter(command.fechaVencimiento())) {
             throw new IllegalArgumentException("El recordatorio no puede quedar despues del vencimiento.");
+        }
+        if ("recordatorio".equals(tipo) && command.fechaRecordatorio() == null && command.fechaVencimiento() == null) {
+            throw new IllegalArgumentException("Un recordatorio necesita al menos una fecha visible.");
         }
 
         UsuarioEntity usuario = usuarioRepository.buscarPorEmail(email)
@@ -613,7 +616,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
         entity.tipo = command.tipo();
         entity.prioridad = command.prioridad();
         entity.estado = command.estado();
-        entity.fechaVencimiento = command.fechaVencimiento();
+        entity.fechaVencimiento = resolveTaskDueDate(command);
 
         if ("completada".equals(command.estado())) {
             entity.completedAt = entity.completedAt != null ? entity.completedAt : OffsetDateTime.now();
@@ -652,7 +655,7 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
             return "tarea";
         }
         return switch (normalized.toLowerCase()) {
-            case "tarea", "entrega", "estudio", "otro" -> normalized.toLowerCase();
+            case "tarea", "entrega", "estudio", "otro", "recordatorio" -> normalized.toLowerCase();
             default -> throw new IllegalArgumentException("El tipo de tarea no es valido.");
         };
     }
@@ -682,12 +685,22 @@ public class PostgresMeCommandAdapter implements MeCommandPort {
     private String normalizeReminderChannel(String value) {
         String normalized = limpiarTexto(value);
         if (normalized == null) {
-            return "app";
+            return "calendar";
         }
         return switch (normalized.toLowerCase()) {
-            case "app", "email", "sms" -> normalized.toLowerCase();
+            case "app", "email", "sms", "calendar" -> normalized.toLowerCase();
             default -> throw new IllegalArgumentException("El canal del recordatorio no es valido.");
         };
+    }
+
+    private OffsetDateTime resolveTaskDueDate(GuardarTareaCommand command) {
+        if (command.fechaVencimiento() != null) {
+            return command.fechaVencimiento();
+        }
+        if ("recordatorio".equals(command.tipo()) && command.fechaRecordatorio() != null) {
+            return command.fechaRecordatorio();
+        }
+        return null;
     }
 
     private MiTarea toMiTarea(UsuarioTareaEntity tarea, CursoEntity curso) {
