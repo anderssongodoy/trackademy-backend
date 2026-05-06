@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class AcademicRadarService implements AcademicRadarUseCase {
 
-    private static final String RADAR_VERSION = "v1";
+    private static final String RADAR_VERSION = "v2";
     private static final BigDecimal DEFAULT_TARGET_GRADE = BigDecimal.valueOf(13);
 
     private final MeQueryUseCase meQueryUseCase;
@@ -346,18 +346,18 @@ public class AcademicRadarService implements AcademicRadarUseCase {
 
         List<String> weeklyPlan = actions.stream()
                 .limit(3)
-                .map(item -> item.codigoCurso() + " - " + item.evaluacionCodigo() + ": " + item.suggestedMinutes() + " min")
+                .map(item -> displayCourseName(item.nombreCurso()) + " - " + displayEvaluationName(item) + ": " + item.suggestedMinutes() + " min")
                 .toList();
         List<String> warnings = risks.stream()
                 .filter(item -> !"BAJO".equals(item.risk()))
                 .limit(2)
-                .map(item -> item.codigoCurso() + " esta en riesgo " + item.risk().toLowerCase(Locale.ROOT) + ".")
+                .map(item -> displayCourseName(item.nombreCurso()) + " esta en riesgo " + item.risk().toLowerCase(Locale.ROOT) + ".")
                 .toList();
 
         return new RadarAiInsight(
-                "Prioriza " + todayPriority.codigoCurso() + " hoy",
-                "El asistente detecto que " + todayPriority.evaluacionCodigo() + " combina urgencia, peso academico y riesgo del curso.",
-                "Dedica " + todayPriority.suggestedMinutes() + " minutos a " + todayPriority.evaluacionCodigo() + " de " + todayPriority.nombreCurso() + ".",
+                "Prioriza " + displayCourseName(todayPriority.nombreCurso()) + " hoy",
+                "El asistente detecto que " + displayEvaluationName(todayPriority) + " combina urgencia, peso academico y riesgo del curso.",
+                "Dedica " + todayPriority.suggestedMinutes() + " minutos a " + displayEvaluationName(todayPriority) + " de " + displayCourseName(todayPriority.nombreCurso()) + ".",
                 weeklyPlan,
                 warnings,
                 "media",
@@ -403,6 +403,9 @@ public class AcademicRadarService implements AcademicRadarUseCase {
                 Eres el Asistente Academico IA de Trackademy para estudiantes universitarios.
                 Responde solo JSON valido, sin markdown.
                 Debes ser concreto, accionable y honesto. No inventes cursos, notas ni fechas.
+                No uses codigos internos de curso. Usa nombres de cursos entendibles para el alumno.
+                Si mencionas una evaluacion, presentala como "evaluacion <codigo>" o con su tipo si existe.
+                Evita repetir el mismo dato en varias frases; cada bloque debe aportar algo nuevo.
                 Usa este schema:
                 {
                   "headline": "string corto",
@@ -562,6 +565,41 @@ public class AcademicRadarService implements AcademicRadarUseCase {
     private String text(JsonNode node, String field, String fallback) {
         JsonNode value = node == null ? null : node.get(field);
         return value != null && value.isTextual() && !value.asText().isBlank() ? value.asText() : fallback;
+    }
+
+    private String displayEvaluationName(RadarAction action) {
+        String code = action.evaluacionCodigo();
+        if (code == null || code.isBlank()) {
+            return action.tipo() == null || action.tipo().isBlank() ? "la evaluacion pendiente" : "la evaluacion " + action.tipo();
+        }
+        return "la evaluacion " + code;
+    }
+
+    private String displayCourseName(String rawName) {
+        if (rawName == null || rawName.isBlank()) {
+            return "este curso";
+        }
+        String trimmed = rawName.trim().replaceAll("\\s+", " ");
+        boolean mostlyUpper = trimmed.chars()
+                .filter(Character::isLetter)
+                .allMatch(ch -> !Character.isLowerCase(ch));
+        if (!mostlyUpper) {
+            return trimmed;
+        }
+        String lower = trimmed.toLowerCase(Locale.forLanguageTag("es-PE"));
+        StringBuilder out = new StringBuilder(lower.length());
+        boolean capitalizeNext = true;
+        for (int i = 0; i < lower.length(); i++) {
+            char ch = lower.charAt(i);
+            if (Character.isLetter(ch) && capitalizeNext) {
+                out.append(Character.toTitleCase(ch));
+                capitalizeNext = false;
+            } else {
+                out.append(ch);
+                capitalizeNext = ch == ' ' || ch == '-' || ch == ':';
+            }
+        }
+        return out.toString();
     }
 
     private List<String> stringList(JsonNode node, List<String> fallback) {
