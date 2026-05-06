@@ -57,7 +57,7 @@ public class AcademicRadarService implements AcademicRadarUseCase {
     boolean aiEnabled;
 
     @ConfigProperty(name = "app.ai.openai.api-key", defaultValue = "")
-    String openAiApiKey;
+    Optional<String> openAiApiKey;
 
     @ConfigProperty(name = "app.ai.openai.base-url", defaultValue = "https://api.openai.com/v1")
     String openAiBaseUrl;
@@ -366,7 +366,7 @@ public class AcademicRadarService implements AcademicRadarUseCase {
     }
 
     private AcademicRadar maybeGenerateAiInsight(AcademicRadar radar, MiPeriodoActual periodo) {
-        if (!aiEnabled || openAiApiKey == null || openAiApiKey.isBlank() || radar.todayPriority() == null) {
+        if (!aiEnabled || openAiApiKey.isEmpty() || openAiApiKey.get().isBlank() || radar.todayPriority() == null) {
             return radar;
         }
 
@@ -425,7 +425,7 @@ public class AcademicRadarService implements AcademicRadarUseCase {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(openAiBaseUrl.replaceAll("/+$", "") + "/responses"))
                 .timeout(Duration.ofSeconds(18))
-                .header("Authorization", "Bearer " + openAiApiKey)
+                .header("Authorization", "Bearer " + openAiApiKey.orElseThrow())
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody)))
                 .build();
