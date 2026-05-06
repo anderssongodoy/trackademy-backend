@@ -1,6 +1,7 @@
 package com.trackademy.adapter.in.rest;
 
 import com.trackademy.adapter.in.rest.dto.ActualizarConfiguracionPeriodoRequest;
+import com.trackademy.adapter.in.rest.dto.AcademicRadarResponse;
 import com.trackademy.adapter.in.rest.dto.ActualizarPerfilAcademicoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarPerfilPersonalRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarDatosCursoRequest;
@@ -21,6 +22,7 @@ import com.trackademy.adapter.in.rest.dto.MiTareaResponse;
 import com.trackademy.adapter.in.rest.dto.RegistrarNotaEvaluacionRequest;
 import com.trackademy.adapter.in.rest.dto.GuardarTareaRequest;
 import com.trackademy.application.port.in.AuthUseCase;
+import com.trackademy.application.port.in.AcademicRadarUseCase;
 import com.trackademy.application.port.in.CalendarSyncUseCase;
 import com.trackademy.application.port.in.MeCommandUseCase;
 import com.trackademy.application.port.in.MeQueryUseCase;
@@ -47,17 +49,20 @@ public class MeResource {
     private final MeCommandUseCase meCommandUseCase;
     private final AuthUseCase authUseCase;
     private final CalendarSyncUseCase calendarSyncUseCase;
+    private final AcademicRadarUseCase academicRadarUseCase;
 
     public MeResource(
             MeQueryUseCase meQueryUseCase,
             MeCommandUseCase meCommandUseCase,
             AuthUseCase authUseCase,
-            CalendarSyncUseCase calendarSyncUseCase
+            CalendarSyncUseCase calendarSyncUseCase,
+            AcademicRadarUseCase academicRadarUseCase
     ) {
         this.meQueryUseCase = meQueryUseCase;
         this.meCommandUseCase = meCommandUseCase;
         this.authUseCase = authUseCase;
         this.calendarSyncUseCase = calendarSyncUseCase;
+        this.academicRadarUseCase = academicRadarUseCase;
     }
 
     @GET
@@ -144,6 +149,19 @@ public class MeResource {
                 .map(Response::ok)
                 .orElse(Response.status(Response.Status.NOT_FOUND))
                 .build();
+    }
+
+    @GET
+    @Path("/academic-radar")
+    public Response academicRadar(@HeaderParam("Authorization") String authorization) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        return Response.ok(
+                AcademicRadarResponse.from(academicRadarUseCase.obtenerRadar(principal.get().email()))
+        ).build();
     }
 
     @GET
