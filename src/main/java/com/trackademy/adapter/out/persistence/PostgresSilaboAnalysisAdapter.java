@@ -101,7 +101,10 @@ public class PostgresSilaboAnalysisAdapter implements SilaboAnalysisPort {
             try {
                 List<String> temas = objectMapper.readValue(entity.temasJson, new TypeReference<>() {});
                 List<SilaboAnalysisRecurso> recursos = objectMapper.readValue(entity.recursosJson, new TypeReference<>() {});
-                return new SilaboAnalysis(entity.silaboId, entity.hashPdf, entity.resumen, temas, recursos, entity.generatedAt);
+                List<String> paraIrMasAlla = entity.proximosPasosJson != null
+                        ? objectMapper.readValue(entity.proximosPasosJson, new TypeReference<>() {})
+                        : new ArrayList<>();
+                return new SilaboAnalysis(entity.silaboId, entity.hashPdf, entity.resumen, temas, recursos, paraIrMasAlla, entity.generatedAt);
             } catch (JsonProcessingException e) {
                 return null;
             }
@@ -121,6 +124,7 @@ public class PostgresSilaboAnalysisAdapter implements SilaboAnalysisPort {
             entity.resumen = analisis.resumen();
             entity.temasJson = objectMapper.writeValueAsString(analisis.temas());
             entity.recursosJson = objectMapper.writeValueAsString(analisis.recursos());
+            entity.proximosPasosJson = objectMapper.writeValueAsString(analisis.paraIrMasAlla());
             entity.model = "claude-haiku-4-5-20251001";
             entity.generatedAt = analisis.generatedAt();
             entity.createdAt = OffsetDateTime.now();
