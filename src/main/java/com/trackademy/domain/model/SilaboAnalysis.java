@@ -10,6 +10,8 @@ public record SilaboAnalysis(
         List<String> temas,
         List<SilaboAnalysisRecurso> recursos,
         List<String> paraIrMasAlla,
+        Integer promptTokens,
+        Integer completionTokens,
         OffsetDateTime generatedAt
 ) {
 }
