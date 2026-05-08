@@ -36,6 +36,9 @@ public class SilaboAnalysisSnapshotEntity {
     @Column(name = "completion_tokens")
     public Integer completionTokens;
 
+    @Column(name = "proximos_pasos_json", columnDefinition = "text")
+    public String proximosPasosJson;
+
     @Column(name = "generated_at", nullable = false)
     public OffsetDateTime generatedAt;
 

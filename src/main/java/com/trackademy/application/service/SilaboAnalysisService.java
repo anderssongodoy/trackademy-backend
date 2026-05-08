@@ -70,7 +70,7 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
         try {
             var requestBody = Map.of(
                     "model", MODEL,
-                    "max_tokens", 2048,
+                    "max_tokens", 3000,
                     "tools", List.of(Map.of(
                             "type", "web_search_20250305",
                             "name", "web_search",
@@ -150,7 +150,10 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
                     r.path("descripcion").asText("")
             )));
 
-            return new SilaboAnalysis(silabo.silaboId(), silabo.hashPdf(), resumen, temas, recursos, OffsetDateTime.now());
+            List<String> paraIrMasAlla = new ArrayList<>();
+            root.path("paraIrMasAlla").forEach(t -> paraIrMasAlla.add(t.asText()));
+
+            return new SilaboAnalysis(silabo.silaboId(), silabo.hashPdf(), resumen, temas, recursos, paraIrMasAlla, OffsetDateTime.now());
         } catch (Exception e) {
             LOG.errorf(e, "Error parseando respuesta de IA. Texto recibido: %s", text);
             throw new RuntimeException("Error procesando respuesta de IA: " + e.getMessage(), e);
@@ -168,7 +171,7 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
 
     private String buildPrompt(SilaboParaAnalisis silabo) {
         var sb = new StringBuilder();
-        sb.append("Eres un asistente académico experto en analizar sílabos universitarios peruanos.\n\n");
+        sb.append("Eres un mentor académico que ayuda a estudiantes universitarios peruanos a sacarle el máximo provecho a sus cursos.\n\n");
         sb.append("SÍLABO: ").append(silabo.nombreCurso()).append("\n\n");
 
         if (silabo.sumilla() != null && !silabo.sumilla().isBlank())
@@ -186,12 +189,20 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
             sb.append("\n");
         }
 
-        sb.append("Basándote en este sílabo:\n");
-        sb.append("1. Escribe un resumen conciso del curso (2-3 oraciones en español)\n");
-        sb.append("2. Lista los 5-7 temas o conceptos clave del curso\n");
-        sb.append("3. Usa web_search para encontrar 3-4 recursos de estudio reales: tutoriales de YouTube, videos explicativos, libros gratuitos online o documentación oficial. Busca en español si hay disponibles. Los recursos deben ser específicos para este curso.\n\n");
+        sb.append("Tu tarea tiene 4 partes:\n\n");
+        sb.append("1. RESUMEN: Escribe 2-3 oraciones en español que expliquen de qué va el curso y qué habilidades desarrolla el alumno.\n\n");
+        sb.append("2. TEMAS CLAVE: Lista 5-7 temas o conceptos centrales del curso (cortos, directos).\n\n");
+        sb.append("3. RECURSOS: Usa web_search para encontrar exactamente 5 recursos reales con URLs que funcionen:\n");
+        sb.append("   - 3 videos de YouTube (tutoriales o explicaciones del tema en español si existen, sino en inglés)\n");
+        sb.append("   - 1 libro gratuito online o PDF descargable\n");
+        sb.append("   - 1 documentación oficial o recurso de referencia técnica\n");
+        sb.append("   Verifica que las URLs sean reales. No inventes recursos.\n\n");
+        sb.append("4. PARA IR MÁS ALLÁ: Lista 4-5 temas, tecnologías o habilidades que el alumno puede explorar para ir más allá de lo que enseña la universidad. ");
+        sb.append("Piensa como un mentor: ¿qué le recomendarías aprender después o en paralelo para destacar en el mercado laboral? ");
+        sb.append("¿Qué tecnologías complementan este curso? ¿Qué certificaciones son relevantes? ¿Qué aprenden los profesionales en el mundo real que el sílabo no cubre? ");
+        sb.append("Formato: frases cortas y directas como 'Docker y contenedores para despliegue', 'Certificación AWS Cloud Practitioner', etc.\n\n");
         sb.append("Responde ÚNICAMENTE con un JSON válido con esta estructura exacta (sin texto adicional antes o después):\n");
-        sb.append("{\"resumen\":\"...\",\"temas\":[\"tema1\",\"tema2\"],\"recursos\":[{\"titulo\":\"...\",\"tipo\":\"youtube|libro|articulo|documentacion|curso\",\"url\":\"...\",\"descripcion\":\"...\"}]}");
+        sb.append("{\"resumen\":\"...\",\"temas\":[\"tema1\",\"tema2\"],\"recursos\":[{\"titulo\":\"...\",\"tipo\":\"youtube|libro|documentacion\",\"url\":\"...\",\"descripcion\":\"...\"}],\"paraIrMasAlla\":[\"sugerencia1\",\"sugerencia2\"]}");
 
         return sb.toString();
     }
