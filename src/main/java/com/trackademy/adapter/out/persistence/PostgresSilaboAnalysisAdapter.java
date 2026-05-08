@@ -120,7 +120,7 @@ public class PostgresSilaboAnalysisAdapter implements SilaboAnalysisPort {
             entity.resumen = analisis.resumen();
             entity.temasJson = objectMapper.writeValueAsString(analisis.temas());
             entity.recursosJson = objectMapper.writeValueAsString(analisis.recursos());
-            entity.model = "claude-3-5-haiku-20241022";
+            entity.model = "claude-haiku-4-5-20251001";
             entity.generatedAt = analisis.generatedAt();
             entity.createdAt = OffsetDateTime.now();
             snapshotRepository.persist(entity);
