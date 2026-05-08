@@ -29,6 +29,7 @@ import com.trackademy.application.port.in.CalendarSyncUseCase;
 import com.trackademy.application.port.in.MeCommandUseCase;
 import com.trackademy.application.port.in.MeQueryUseCase;
 import com.trackademy.application.port.in.SilaboAnalysisUseCase;
+import org.jboss.logging.Logger;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.POST;
@@ -47,6 +48,8 @@ import java.util.List;
 @Path("/api/v1/me")
 @Produces(MediaType.APPLICATION_JSON)
 public class MeResource {
+
+    private static final Logger LOG = Logger.getLogger(MeResource.class);
 
     private final MeQueryUseCase meQueryUseCase;
     private final MeCommandUseCase meCommandUseCase;
@@ -396,6 +399,7 @@ public class MeResource {
                     .entity(ApiErrorResponse.of("not_found", e.getMessage()))
                     .build();
         } catch (Exception e) {
+            LOG.errorf(e, "Error en analizarSilabo curso=%d", usuarioPeriodoCursoId);
             return Response.status(Response.Status.SERVICE_UNAVAILABLE)
                     .entity(ApiErrorResponse.of("ai_unavailable",
                             "Esta función no está disponible en este momento. Inténtalo más tarde."))

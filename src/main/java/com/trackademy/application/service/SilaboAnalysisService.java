@@ -8,6 +8,7 @@ import com.trackademy.domain.model.SilaboAnalysisRecurso;
 import com.trackademy.domain.model.SilaboParaAnalisis;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -22,6 +23,7 @@ import java.util.Map;
 @ApplicationScoped
 public class SilaboAnalysisService implements SilaboAnalysisUseCase {
 
+    private static final Logger LOG = Logger.getLogger(SilaboAnalysisService.class);
     private static final String MODEL = "claude-3-5-haiku-20241022";
     private static final String API_URL = "https://api.anthropic.com/v1/messages";
 
@@ -54,10 +56,12 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
     }
 
     private SilaboAnalysis callAnthropicAndParse(SilaboParaAnalisis silabo) {
-        if (apiKey == null || apiKey.isBlank()) {
+        if (apiKey == null || apiKey.isBlank() || apiKey.equals("dummy-key")) {
+            LOG.error("ANTHROPIC_API_KEY no configurada o es el valor por defecto");
             throw new IllegalStateException("Anthropic API key no configurada.");
         }
 
+        LOG.infof("Llamando Anthropic API para silabo id=%d hashPdf=%s", silabo.silaboId(), silabo.hashPdf());
         String responseText = callApi(buildPrompt(silabo));
         return parseResponse(silabo, responseText);
     }
@@ -93,13 +97,17 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
+                LOG.errorf("Anthropic API error: status=%d body=%s", response.statusCode(), response.body());
                 throw new RuntimeException("Anthropic API respondio con status " + response.statusCode());
             }
 
+            LOG.infof("Anthropic API respondio OK, extrayendo texto");
             return extractLastTextBlock(response.body());
         } catch (RuntimeException e) {
+            LOG.errorf(e, "RuntimeException en callApi");
             throw e;
         } catch (Exception e) {
+            LOG.errorf(e, "Exception inesperada en callApi");
             throw new RuntimeException("Error llamando a Anthropic API: " + e.getMessage(), e);
         }
     }
@@ -144,6 +152,7 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
 
             return new SilaboAnalysis(silabo.silaboId(), silabo.hashPdf(), resumen, temas, recursos, OffsetDateTime.now());
         } catch (Exception e) {
+            LOG.errorf(e, "Error parseando respuesta de IA. Texto recibido: %s", text);
             throw new RuntimeException("Error procesando respuesta de IA: " + e.getMessage(), e);
         }
     }
