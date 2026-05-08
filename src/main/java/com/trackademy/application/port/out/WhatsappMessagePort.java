@@ -1,6 +1,8 @@
 package com.trackademy.application.port.out;
 
+import com.trackademy.domain.model.whatsapp.WspResponse;
+
 public interface WhatsappMessagePort {
 
-    void sendTextMessage(String to, String body);
+    void send(String to, WspResponse response);
 }

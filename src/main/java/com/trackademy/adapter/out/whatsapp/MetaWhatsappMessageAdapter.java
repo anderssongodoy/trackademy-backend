@@ -2,6 +2,7 @@ package com.trackademy.adapter.out.whatsapp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trackademy.application.port.out.WhatsappMessagePort;
+import com.trackademy.domain.model.whatsapp.WspResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -44,10 +45,8 @@ public class MetaWhatsappMessageAdapter implements WhatsappMessagePort {
     }
 
     @Override
-    public void sendTextMessage(String to, String body) {
-        if (to == null || to.isBlank() || body == null || body.isBlank()) {
-            return;
-        }
+    public void send(String to, WspResponse response) {
+        if (to == null || to.isBlank() || response == null) return;
         if (accessToken == null || accessToken.isBlank() || phoneNumberId == null || phoneNumberId.isBlank()) {
             LOG.warn("WhatsApp message skipped because Meta config is incomplete.");
             return;
@@ -58,45 +57,88 @@ public class MetaWhatsappMessageAdapter implements WhatsappMessagePort {
         }
 
         try {
-            String payload = objectMapper.writeValueAsString(Map.of(
-                    "messaging_product", "whatsapp",
-                    "recipient_type", "individual",
-                    "to", to,
-                    "type", "text",
-                    "text", Map.of(
-                            "preview_url", false,
-                            "body", body
-                    )
-            ));
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://graph.facebook.com/" + apiVersion + "/" + phoneNumberId + "/messages"))
-                    .header("Authorization", "Bearer " + accessToken)
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(15))
-                    .POST(HttpRequest.BodyPublishers.ofString(payload))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() >= 400) {
-                LOG.errorf("WhatsApp send failed with status %d", response.statusCode());
-                lastSendByRecipient.remove(to);
-            }
+            String payload = switch (response) {
+                case WspResponse.Texto t -> buildTextPayload(to, t.body());
+                case WspResponse.Botones b -> buildBotonPayload(to, b);
+                case WspResponse.Lista l -> buildListaPayload(to, l);
+            };
+            doSend(to, payload);
         } catch (Exception ex) {
             lastSendByRecipient.remove(to);
             LOG.error("WhatsApp send failed due to integration error.", ex);
         }
     }
 
+    private String buildTextPayload(String to, String body) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "messaging_product", "whatsapp",
+                "recipient_type", "individual",
+                "to", to,
+                "type", "text",
+                "text", Map.of("preview_url", false, "body", body)
+        ));
+    }
+
+    private String buildBotonPayload(String to, WspResponse.Botones botones) throws Exception {
+        var buttons = botones.botones().stream()
+                .map(b -> Map.of("type", "reply", "reply", Map.of("id", b.id(), "title", b.etiqueta())))
+                .toList();
+        return objectMapper.writeValueAsString(Map.of(
+                "messaging_product", "whatsapp",
+                "recipient_type", "individual",
+                "to", to,
+                "type", "interactive",
+                "interactive", Map.of(
+                        "type", "button",
+                        "body", Map.of("text", botones.body()),
+                        "action", Map.of("buttons", buttons)
+                )
+        ));
+    }
+
+    private String buildListaPayload(String to, WspResponse.Lista lista) throws Exception {
+        var sections = lista.secciones().stream()
+                .map(s -> {
+                    var rows = s.items().stream()
+                            .map(item -> Map.of("id", item.id(), "title", item.titulo(), "description", item.descripcion()))
+                            .toList();
+                    return Map.of("title", s.titulo(), "rows", rows);
+                })
+                .toList();
+        return objectMapper.writeValueAsString(Map.of(
+                "messaging_product", "whatsapp",
+                "recipient_type", "individual",
+                "to", to,
+                "type", "interactive",
+                "interactive", Map.of(
+                        "type", "list",
+                        "body", Map.of("text", lista.body()),
+                        "action", Map.of("button", lista.botonAbrir(), "sections", sections)
+                )
+        ));
+    }
+
+    private void doSend(String to, String payload) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://graph.facebook.com/" + apiVersion + "/" + phoneNumberId + "/messages"))
+                .header("Authorization", "Bearer " + accessToken)
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(15))
+                .POST(HttpRequest.BodyPublishers.ofString(payload))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() >= 400) {
+            LOG.errorf("WhatsApp send failed status=%d body=%s", response.statusCode(), response.body());
+            lastSendByRecipient.remove(to);
+        }
+    }
+
     private boolean canSendNow(String to) {
         Instant now = Instant.now();
         Instant previous = lastSendByRecipient.putIfAbsent(to, now);
-        if (previous == null) {
-            return true;
-        }
-        if (Duration.between(previous, now).getSeconds() < 6) {
-            return false;
-        }
+        if (previous == null) return true;
+        if (Duration.between(previous, now).getSeconds() < 6) return false;
         lastSendByRecipient.put(to, now);
         return true;
     }
