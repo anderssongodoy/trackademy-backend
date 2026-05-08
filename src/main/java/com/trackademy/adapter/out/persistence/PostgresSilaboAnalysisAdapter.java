@@ -112,7 +112,8 @@ public class PostgresSilaboAnalysisAdapter implements SilaboAnalysisPort {
     @Transactional
     public SilaboAnalysis guardarAnalisis(SilaboAnalysis analisis) {
         try {
-            snapshotRepository.delete("hashPdf", analisis.hashPdf());
+            snapshotRepository.delete("hashPdf = ?1", analisis.hashPdf());
+            snapshotRepository.flush();
 
             var entity = new SilaboAnalysisSnapshotEntity();
             entity.silaboId = analisis.silaboId();
