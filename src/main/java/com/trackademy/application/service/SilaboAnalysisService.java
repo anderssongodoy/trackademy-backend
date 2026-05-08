@@ -115,7 +115,7 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
     private String extractLastTextBlock(String responseBody) throws Exception {
         var root = objectMapper.readTree(responseBody);
         var content = root.path("content");
-        if (!content.isArray() || content.isEmpty()) {
+        if (!content.isArray() || content.size() == 0) {
             throw new RuntimeException("Respuesta inesperada de Anthropic API");
         }
 
