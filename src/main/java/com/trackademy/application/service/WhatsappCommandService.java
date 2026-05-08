@@ -4,18 +4,32 @@ import com.trackademy.application.port.in.MeQueryUseCase;
 import com.trackademy.domain.model.me.MiCalendarioEvento;
 import com.trackademy.domain.model.me.MiCurso;
 import com.trackademy.domain.model.me.MiEvaluacionCurso;
+import com.trackademy.domain.model.me.MiTarea;
+import com.trackademy.domain.model.whatsapp.WspResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @ApplicationScoped
 public class WhatsappCommandService {
 
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM", Locale.forLanguageTag("es-PE"));
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final Map<DayOfWeek, String> DIA = Map.of(
+            DayOfWeek.MONDAY, "Lun",
+            DayOfWeek.TUESDAY, "Mar",
+            DayOfWeek.WEDNESDAY, "Mie",
+            DayOfWeek.THURSDAY, "Jue",
+            DayOfWeek.FRIDAY, "Vie",
+            DayOfWeek.SATURDAY, "Sab",
+            DayOfWeek.SUNDAY, "Dom"
+    );
 
     private final MeQueryUseCase meQueryUseCase;
 
@@ -23,121 +37,216 @@ public class WhatsappCommandService {
         this.meQueryUseCase = meQueryUseCase;
     }
 
-    public String resolveCommand(String email, String rawText) {
+    public WspResponse resolveCommand(String email, String rawText) {
         String normalized = normalize(rawText);
         return switch (normalized) {
-            case "menu" -> "Comandos disponibles: resumen, pendientes, hoy, cursos, ayuda.";
-            case "ayuda" -> "Este canal te permite consultar informacion ya registrada en Trackademy. Por ahora no permite registrar ni editar datos.";
-            case "resumen" -> buildResumen(email);
-            case "pendientes" -> buildPendientes(email);
             case "hoy" -> buildHoy(email);
+            case "semana" -> buildSemana(email);
+            case "examenes" -> buildExamenes(email);
+            case "notas" -> buildNotas(email);
+            case "tareas" -> buildTareas(email);
             case "cursos" -> buildCursos(email);
+            case "menu" -> buildMenu();
             default -> isWriteIntent(normalized)
-                    ? "Por ahora WhatsApp en Trackademy es solo para consultar informacion. El registro y edicion de datos se realiza desde la web."
-                    : "Por ahora este canal es solo de consulta. Escribe: menu, resumen, pendientes, hoy o cursos.";
+                    ? new WspResponse.Botones(
+                        "WhatsApp en Trackademy es solo para consultar informacion. El registro y edicion se realiza desde la web.",
+                        List.of(
+                                new WspResponse.Botones.Boton("hoy", "Hoy"),
+                                new WspResponse.Botones.Boton("semana", "Esta semana"),
+                                new WspResponse.Botones.Boton("menu", "Menu")))
+                    : buildMenu();
         };
     }
 
-    private String buildResumen(String email) {
-        var dashboard = meQueryUseCase.obtenerDashboard(email).orElse(null);
-        if (dashboard == null) {
-            return "Todavia no encuentro un resumen listo para tu cuenta. Revisa que tu periodo actual y tus cursos esten configurados en Trackademy.";
+    private WspResponse buildHoy(String email) {
+        LocalDate hoy = LocalDate.now();
+        List<MiCalendarioEvento> eventos = meQueryUseCase.listarCalendario(email, hoy, hoy);
+
+        StringBuilder sb = new StringBuilder("*Hoy, ").append(fmtDayDate(hoy)).append("*\n\n");
+        if (eventos.isEmpty()) {
+            sb.append("Sin clases ni eventos registrados para hoy.");
+        } else {
+            eventos.stream()
+                    .sorted(Comparator.comparing(MiCalendarioEvento::inicio))
+                    .limit(7)
+                    .forEach(e -> sb.append("• ")
+                            .append(e.todoElDia() ? "" : TIME_FMT.format(e.inicio().toLocalTime()) + " · ")
+                            .append(e.titulo())
+                            .append('\n'));
         }
 
-        StringBuilder out = new StringBuilder();
-        out.append("Resumen Trackademy\n");
-        out.append("- Cursos activos: ").append(dashboard.cursosActivos()).append('\n');
-        out.append("- Evaluaciones pendientes: ").append(dashboard.evaluacionesPendientes()).append('\n');
-        out.append("- Notas registradas: ").append(dashboard.notasRegistradas()).append('\n');
-
-        if (!dashboard.proximasEvaluaciones().isEmpty()) {
-            var next = dashboard.proximasEvaluaciones().getFirst();
-            out.append("- Siguiente evaluacion: ")
-                    .append(next.codigoCurso())
-                    .append(" ")
-                    .append(next.evaluacionCodigo());
-            if (next.fechaEstimada() != null) {
-                out.append(" (").append(formatDate(next.fechaEstimada())).append(")");
-            }
-            out.append('\n');
-        }
-
-        if (!dashboard.proximasSesiones().isEmpty()) {
-            var next = dashboard.proximasSesiones().getFirst();
-            out.append("- Proxima clase: ").append(next.titulo());
-        }
-
-        return out.toString().trim();
+        return new WspResponse.Botones(sb.toString().trim(), List.of(
+                new WspResponse.Botones.Boton("semana", "Esta semana"),
+                new WspResponse.Botones.Boton("examenes", "Examenes"),
+                new WspResponse.Botones.Boton("tareas", "Mis tareas")
+        ));
     }
 
-    private String buildPendientes(String email) {
+    private WspResponse buildSemana(String email) {
+        LocalDate hoy = LocalDate.now();
+        LocalDate fin = hoy.plusDays(6);
+        List<MiCalendarioEvento> eventos = meQueryUseCase.listarCalendario(email, hoy, fin);
+
+        StringBuilder sb = new StringBuilder("*Esta semana (")
+                .append(DATE_FMT.format(hoy)).append(" – ").append(DATE_FMT.format(fin)).append(")*\n\n");
+
+        if (eventos.isEmpty()) {
+            sb.append("Sin eventos registrados para esta semana.");
+        } else {
+            eventos.stream()
+                    .sorted(Comparator.comparing(MiCalendarioEvento::inicio))
+                    .limit(9)
+                    .forEach(e -> sb.append("• ")
+                            .append(fmtDayDate(e.inicio().toLocalDate())).append(" · ")
+                            .append(e.todoElDia() ? "" : TIME_FMT.format(e.inicio().toLocalTime()) + " · ")
+                            .append(e.titulo())
+                            .append('\n'));
+        }
+
+        return new WspResponse.Botones(sb.toString().trim(), List.of(
+                new WspResponse.Botones.Boton("hoy", "Hoy"),
+                new WspResponse.Botones.Boton("examenes", "Examenes"),
+                new WspResponse.Botones.Boton("tareas", "Mis tareas")
+        ));
+    }
+
+    private WspResponse buildExamenes(String email) {
         List<MiEvaluacionCurso> pendientes = meQueryUseCase.listarMisEvaluaciones(email, null).stream()
-                .filter(item -> item.nota() == null && !Boolean.TRUE.equals(item.exonerado()))
+                .filter(e -> e.nota() == null && !Boolean.TRUE.equals(e.exonerado()))
                 .sorted(Comparator
                         .comparing(MiEvaluacionCurso::fechaEstimada, Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(MiEvaluacionCurso::codigoCurso, Comparator.nullsLast(Comparator.naturalOrder())))
-                .limit(5)
+                .limit(7)
                 .toList();
 
         if (pendientes.isEmpty()) {
-            return "No encuentro pendientes registrados en este momento. Si ya configuraste tu ciclo, revisa Trackademy para validar nuevas evaluaciones.";
+            return new WspResponse.Botones("No hay evaluaciones pendientes registradas.", List.of(
+                    new WspResponse.Botones.Boton("notas", "Mis notas"),
+                    new WspResponse.Botones.Boton("hoy", "Hoy"),
+                    new WspResponse.Botones.Boton("menu", "Menu")
+            ));
         }
 
-        StringBuilder out = new StringBuilder("Pendientes\n");
-        for (MiEvaluacionCurso item : pendientes) {
-            out.append("- ")
-                    .append(item.codigoCurso())
-                    .append(" ")
-                    .append(item.evaluacionCodigo());
-            if (item.fechaEstimada() != null) {
-                out.append(" · ").append(formatDate(item.fechaEstimada()));
-            }
-            out.append('\n');
-        }
-        return out.toString().trim();
+        StringBuilder sb = new StringBuilder("*Examenes pendientes*\n\n");
+        pendientes.forEach(e -> {
+            sb.append("• ").append(e.codigoCurso()).append(" · ").append(e.evaluacionCodigo());
+            if (e.fechaEstimada() != null) sb.append(" · ").append(DATE_FMT.format(e.fechaEstimada()));
+            if (e.porcentaje() != null) sb.append(" (").append(e.porcentaje().stripTrailingZeros().toPlainString()).append("%)");
+            sb.append('\n');
+        });
+
+        return new WspResponse.Botones(sb.toString().trim(), List.of(
+                new WspResponse.Botones.Boton("notas", "Mis notas"),
+                new WspResponse.Botones.Boton("hoy", "Hoy"),
+                new WspResponse.Botones.Boton("menu", "Menu")
+        ));
     }
 
-    private String buildHoy(String email) {
-        LocalDate hoy = LocalDate.now();
-        List<MiCalendarioEvento> eventos = meQueryUseCase.listarCalendario(email, hoy, hoy);
-        if (eventos.isEmpty()) {
-            return "Hoy no veo clases, eventos o pendientes con fecha del dia en Trackademy.";
-        }
-
-        StringBuilder out = new StringBuilder("Hoy en Trackademy\n");
-        eventos.stream()
-                .sorted(Comparator.comparing(MiCalendarioEvento::inicio))
-                .limit(5)
-                .forEach(item -> out.append("- ")
-                        .append(item.titulo())
-                        .append(item.todoElDia() ? " · todo el dia" : " · " + item.inicio().toLocalTime())
-                        .append('\n'));
-        return out.toString().trim();
-    }
-
-    private String buildCursos(String email) {
-        List<MiCurso> cursos = meQueryUseCase.listarMisCursos(email).stream()
-                .filter(item -> Boolean.TRUE.equals(item.activo()))
-                .toList();
-        if (cursos.isEmpty()) {
-            return "Todavia no veo cursos activos en tu periodo actual. Configuralos primero desde Trackademy.";
-        }
-
-        StringBuilder out = new StringBuilder("Tus cursos\n");
-        cursos.stream()
+    private WspResponse buildNotas(String email) {
+        List<MiEvaluacionCurso> conNota = meQueryUseCase.listarMisEvaluaciones(email, null).stream()
+                .filter(e -> e.nota() != null)
+                .sorted(Comparator.comparing(MiEvaluacionCurso::fechaEstimada, Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(8)
-                .forEach(item -> out.append("- ")
-                        .append(item.codigo())
-                        .append(" · ")
-                        .append(item.nombre())
-                        .append('\n'));
-        return out.toString().trim();
+                .toList();
+
+        if (conNota.isEmpty()) {
+            return new WspResponse.Botones("Aun no hay notas registradas para este ciclo.", List.of(
+                    new WspResponse.Botones.Boton("examenes", "Examenes"),
+                    new WspResponse.Botones.Boton("cursos", "Mis cursos"),
+                    new WspResponse.Botones.Boton("menu", "Menu")
+            ));
+        }
+
+        StringBuilder sb = new StringBuilder("*Mis notas*\n\n");
+        conNota.forEach(e -> sb.append("• ")
+                .append(e.codigoCurso()).append(" · ").append(e.evaluacionCodigo())
+                .append(": *").append(e.nota().toPlainString()).append("*")
+                .append(e.porcentaje() != null ? " (" + e.porcentaje().stripTrailingZeros().toPlainString() + "%)" : "")
+                .append('\n'));
+
+        return new WspResponse.Botones(sb.toString().trim(), List.of(
+                new WspResponse.Botones.Boton("examenes", "Examenes"),
+                new WspResponse.Botones.Boton("cursos", "Mis cursos"),
+                new WspResponse.Botones.Boton("menu", "Menu")
+        ));
+    }
+
+    private WspResponse buildTareas(String email) {
+        List<MiTarea> pendientes = meQueryUseCase.listarMisTareas(email).stream()
+                .filter(t -> !"COMPLETADO".equals(t.estado()))
+                .sorted(Comparator.comparing(MiTarea::fechaVencimiento, Comparator.nullsLast(Comparator.naturalOrder())))
+                .limit(7)
+                .toList();
+
+        if (pendientes.isEmpty()) {
+            return new WspResponse.Botones("No tienes tareas pendientes. Todo al dia!", List.of(
+                    new WspResponse.Botones.Boton("hoy", "Hoy"),
+                    new WspResponse.Botones.Boton("semana", "Esta semana"),
+                    new WspResponse.Botones.Boton("menu", "Menu")
+            ));
+        }
+
+        StringBuilder sb = new StringBuilder("*Mis tareas*\n\n");
+        pendientes.forEach(t -> {
+            sb.append("• ").append(t.titulo());
+            if (t.fechaVencimiento() != null) sb.append(" · ").append(DATE_FMT.format(t.fechaVencimiento().toLocalDate()));
+            sb.append('\n');
+        });
+
+        return new WspResponse.Botones(sb.toString().trim(), List.of(
+                new WspResponse.Botones.Boton("hoy", "Hoy"),
+                new WspResponse.Botones.Boton("semana", "Esta semana"),
+                new WspResponse.Botones.Boton("menu", "Menu")
+        ));
+    }
+
+    private WspResponse buildCursos(String email) {
+        List<MiCurso> cursos = meQueryUseCase.listarMisCursos(email).stream()
+                .filter(c -> Boolean.TRUE.equals(c.activo()))
+                .toList();
+
+        if (cursos.isEmpty()) {
+            return new WspResponse.Botones("Todavia no veo cursos activos. Configuralos desde Trackademy.", List.of(
+                    new WspResponse.Botones.Boton("hoy", "Hoy"),
+                    new WspResponse.Botones.Boton("examenes", "Examenes"),
+                    new WspResponse.Botones.Boton("menu", "Menu")
+            ));
+        }
+
+        StringBuilder sb = new StringBuilder("*Mis cursos*\n\n");
+        cursos.stream().limit(8).forEach(c -> sb.append("• ")
+                .append(c.codigo()).append(" · ").append(c.nombre()).append('\n'));
+
+        return new WspResponse.Botones(sb.toString().trim(), List.of(
+                new WspResponse.Botones.Boton("hoy", "Hoy"),
+                new WspResponse.Botones.Boton("examenes", "Examenes"),
+                new WspResponse.Botones.Boton("menu", "Menu")
+        ));
+    }
+
+    private WspResponse buildMenu() {
+        return new WspResponse.Lista(
+                "Que quieres consultar?",
+                "Ver opciones",
+                List.of(
+                        new WspResponse.Lista.Seccion("Agenda", List.of(
+                                new WspResponse.Lista.Item("hoy", "Hoy", "Clases y eventos de hoy"),
+                                new WspResponse.Lista.Item("semana", "Esta semana", "Proximos 7 dias")
+                        )),
+                        new WspResponse.Lista.Seccion("Evaluaciones", List.of(
+                                new WspResponse.Lista.Item("examenes", "Examenes", "Evaluaciones pendientes"),
+                                new WspResponse.Lista.Item("notas", "Mis notas", "Notas registradas")
+                        )),
+                        new WspResponse.Lista.Seccion("General", List.of(
+                                new WspResponse.Lista.Item("tareas", "Mis tareas", "Tareas pendientes"),
+                                new WspResponse.Lista.Item("cursos", "Mis cursos", "Cursos del ciclo")
+                        ))
+                )
+        );
     }
 
     private String normalize(String rawText) {
-        if (rawText == null) {
-            return "";
-        }
+        if (rawText == null) return "";
         return rawText.trim().toLowerCase(Locale.ROOT);
     }
 
@@ -151,7 +260,7 @@ public class WhatsappCommandService {
                 || normalized.startsWith("cambia");
     }
 
-    private String formatDate(LocalDate value) {
-        return DATE_FORMATTER.format(value);
+    private String fmtDayDate(LocalDate d) {
+        return DIA.get(d.getDayOfWeek()) + " " + DATE_FMT.format(d);
     }
 }
