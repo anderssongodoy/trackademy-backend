@@ -24,7 +24,7 @@ import java.util.Map;
 public class SilaboAnalysisService implements SilaboAnalysisUseCase {
 
     private static final Logger LOG = Logger.getLogger(SilaboAnalysisService.class);
-    private static final String MODEL = "claude-3-5-haiku-20241022";
+    private static final String MODEL = "claude-haiku-4-5-20251001";
     private static final String API_URL = "https://api.anthropic.com/v1/messages";
 
     @ConfigProperty(name = "app.ai.anthropic.api-key", defaultValue = "")
