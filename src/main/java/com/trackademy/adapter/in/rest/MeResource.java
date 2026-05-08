@@ -2,6 +2,8 @@ package com.trackademy.adapter.in.rest;
 
 import com.trackademy.adapter.in.rest.dto.ActualizarConfiguracionPeriodoRequest;
 import com.trackademy.adapter.in.rest.dto.AcademicRadarResponse;
+import com.trackademy.adapter.in.rest.dto.ApiErrorResponse;
+import com.trackademy.adapter.in.rest.dto.SilaboAnalysisResponse;
 import com.trackademy.adapter.in.rest.dto.ActualizarPerfilAcademicoRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarPerfilPersonalRequest;
 import com.trackademy.adapter.in.rest.dto.ActualizarDatosCursoRequest;
@@ -26,6 +28,7 @@ import com.trackademy.application.port.in.AcademicRadarUseCase;
 import com.trackademy.application.port.in.CalendarSyncUseCase;
 import com.trackademy.application.port.in.MeCommandUseCase;
 import com.trackademy.application.port.in.MeQueryUseCase;
+import com.trackademy.application.port.in.SilaboAnalysisUseCase;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.POST;
@@ -50,19 +53,22 @@ public class MeResource {
     private final AuthUseCase authUseCase;
     private final CalendarSyncUseCase calendarSyncUseCase;
     private final AcademicRadarUseCase academicRadarUseCase;
+    private final SilaboAnalysisUseCase silaboAnalysisUseCase;
 
     public MeResource(
             MeQueryUseCase meQueryUseCase,
             MeCommandUseCase meCommandUseCase,
             AuthUseCase authUseCase,
             CalendarSyncUseCase calendarSyncUseCase,
-            AcademicRadarUseCase academicRadarUseCase
+            AcademicRadarUseCase academicRadarUseCase,
+            SilaboAnalysisUseCase silaboAnalysisUseCase
     ) {
         this.meQueryUseCase = meQueryUseCase;
         this.meCommandUseCase = meCommandUseCase;
         this.authUseCase = authUseCase;
         this.calendarSyncUseCase = calendarSyncUseCase;
         this.academicRadarUseCase = academicRadarUseCase;
+        this.silaboAnalysisUseCase = silaboAnalysisUseCase;
     }
 
     @GET
@@ -366,6 +372,35 @@ public class MeResource {
                         calendarSyncUseCase.desconectarGoogle(principal.get().email())
                 )
         ).build();
+    }
+
+    @GET
+    @Path("/cursos/{usuarioPeriodoCursoId}/silabo/analisis")
+    public Response analizarSilabo(
+            @HeaderParam("Authorization") String authorization,
+            @PathParam("usuarioPeriodoCursoId") Long usuarioPeriodoCursoId
+    ) {
+        var principal = authUseCase.authenticate(authorization);
+        if (principal.isEmpty()) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
+        try {
+            return Response.ok(
+                    SilaboAnalysisResponse.from(
+                            silaboAnalysisUseCase.analizarSilabo(principal.get().email(), usuarioPeriodoCursoId)
+                    )
+            ).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(ApiErrorResponse.of("not_found", e.getMessage()))
+                    .build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity(ApiErrorResponse.of("ai_unavailable",
+                            "Esta función no está disponible en este momento. Inténtalo más tarde."))
+                    .build();
+        }
     }
 
     @PUT
