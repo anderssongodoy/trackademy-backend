@@ -21,10 +21,10 @@ public class SilaboAnalysisSnapshotEntity {
     @Column(name = "resumen", nullable = false, columnDefinition = "text")
     public String resumen;
 
-    @Column(name = "temas_json", nullable = false, columnDefinition = "jsonb")
+    @Column(name = "temas_json", nullable = false, columnDefinition = "text")
     public String temasJson;
 
-    @Column(name = "recursos_json", nullable = false, columnDefinition = "jsonb")
+    @Column(name = "recursos_json", nullable = false, columnDefinition = "text")
     public String recursosJson;
 
     @Column(name = "model", nullable = false)
