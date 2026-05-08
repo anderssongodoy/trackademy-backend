@@ -55,6 +55,8 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
                 });
     }
 
+    private record ApiResult(String text, int inputTokens, int outputTokens) {}
+
     private SilaboAnalysis callAnthropicAndParse(SilaboParaAnalisis silabo) {
         if (apiKey == null || apiKey.isBlank() || apiKey.equals("dummy-key")) {
             LOG.error("ANTHROPIC_API_KEY no configurada o es el valor por defecto");
@@ -62,11 +64,11 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
         }
 
         LOG.infof("Llamando Anthropic API para silabo id=%d hashPdf=%s", silabo.silaboId(), silabo.hashPdf());
-        String responseText = callApi(buildPrompt(silabo));
-        return parseResponse(silabo, responseText);
+        ApiResult result = callApi(buildPrompt(silabo));
+        return parseResponse(silabo, result);
     }
 
-    private String callApi(String prompt) {
+    private ApiResult callApi(String prompt) {
         try {
             var requestBody = Map.of(
                     "model", MODEL,
@@ -101,8 +103,8 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
                 throw new RuntimeException("Anthropic API respondio con status " + response.statusCode());
             }
 
-            LOG.infof("Anthropic API respondio OK, extrayendo texto");
-            return extractLastTextBlock(response.body());
+            LOG.infof("Anthropic API respondio OK, extrayendo texto y tokens");
+            return extractApiResult(response.body());
         } catch (RuntimeException e) {
             LOG.errorf(e, "RuntimeException en callApi");
             throw e;
@@ -112,7 +114,7 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
         }
     }
 
-    private String extractLastTextBlock(String responseBody) throws Exception {
+    private ApiResult extractApiResult(String responseBody) throws Exception {
         var root = objectMapper.readTree(responseBody);
         var content = root.path("content");
         if (!content.isArray() || content.size() == 0) {
@@ -129,11 +131,16 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
         if (lastText == null || lastText.isBlank()) {
             throw new RuntimeException("Sin contenido de texto en la respuesta de Anthropic");
         }
-        return lastText;
+
+        int inputTokens = root.path("usage").path("input_tokens").asInt(0);
+        int outputTokens = root.path("usage").path("output_tokens").asInt(0);
+        LOG.infof("Tokens usados — input=%d output=%d", inputTokens, outputTokens);
+
+        return new ApiResult(lastText, inputTokens, outputTokens);
     }
 
-    private SilaboAnalysis parseResponse(SilaboParaAnalisis silabo, String text) {
-        String json = extractJson(text);
+    private SilaboAnalysis parseResponse(SilaboParaAnalisis silabo, ApiResult result) {
+        String json = extractJson(result.text());
         try {
             var root = objectMapper.readTree(json);
 
@@ -153,9 +160,13 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
             List<String> paraIrMasAlla = new ArrayList<>();
             root.path("paraIrMasAlla").forEach(t -> paraIrMasAlla.add(t.asText()));
 
-            return new SilaboAnalysis(silabo.silaboId(), silabo.hashPdf(), resumen, temas, recursos, paraIrMasAlla, OffsetDateTime.now());
+            return new SilaboAnalysis(
+                    silabo.silaboId(), silabo.hashPdf(), resumen, temas, recursos, paraIrMasAlla,
+                    result.inputTokens(), result.outputTokens(),
+                    OffsetDateTime.now()
+            );
         } catch (Exception e) {
-            LOG.errorf(e, "Error parseando respuesta de IA. Texto recibido: %s", text);
+            LOG.errorf(e, "Error parseando respuesta de IA. Texto recibido: %s", result.text());
             throw new RuntimeException("Error procesando respuesta de IA: " + e.getMessage(), e);
         }
     }
@@ -189,20 +200,20 @@ public class SilaboAnalysisService implements SilaboAnalysisUseCase {
             sb.append("\n");
         }
 
-        sb.append("Tu tarea tiene 4 partes:\n\n");
-        sb.append("1. RESUMEN: Escribe 2-3 oraciones en español que expliquen de qué va el curso y qué habilidades desarrolla el alumno.\n\n");
-        sb.append("2. TEMAS CLAVE: Lista 5-7 temas o conceptos centrales del curso (cortos, directos).\n\n");
-        sb.append("3. RECURSOS: Usa web_search para encontrar exactamente 5 recursos reales con URLs que funcionen:\n");
-        sb.append("   - 3 videos de YouTube (tutoriales o explicaciones del tema en español si existen, sino en inglés)\n");
-        sb.append("   - 1 libro gratuito online o PDF descargable\n");
-        sb.append("   - 1 documentación oficial o recurso de referencia técnica\n");
-        sb.append("   Verifica que las URLs sean reales. No inventes recursos.\n\n");
-        sb.append("4. PARA IR MÁS ALLÁ: Lista 4-5 temas, tecnologías o habilidades que el alumno puede explorar para ir más allá de lo que enseña la universidad. ");
-        sb.append("Piensa como un mentor: ¿qué le recomendarías aprender después o en paralelo para destacar en el mercado laboral? ");
-        sb.append("¿Qué tecnologías complementan este curso? ¿Qué certificaciones son relevantes? ¿Qué aprenden los profesionales en el mundo real que el sílabo no cubre? ");
-        sb.append("Formato: frases cortas y directas como 'Docker y contenedores para despliegue', 'Certificación AWS Cloud Practitioner', etc.\n\n");
-        sb.append("Responde ÚNICAMENTE con un JSON válido con esta estructura exacta (sin texto adicional antes o después):\n");
-        sb.append("{\"resumen\":\"...\",\"temas\":[\"tema1\",\"tema2\"],\"recursos\":[{\"titulo\":\"...\",\"tipo\":\"youtube|libro|documentacion\",\"url\":\"...\",\"descripcion\":\"...\"}],\"paraIrMasAlla\":[\"sugerencia1\",\"sugerencia2\"]}");
+        sb.append("Completa estas 4 tareas en orden:\n\n");
+        sb.append("TAREA 1 — resumen: Escribe 2-3 oraciones en español sobre qué enseña este curso y qué habilidades desarrolla el alumno.\n\n");
+        sb.append("TAREA 2 — temas: Lista 5-7 conceptos o temas centrales del curso. Frases cortas y directas.\n\n");
+        sb.append("TAREA 3 — paraIrMasAlla: Lista 4-5 tecnologías, skills o certificaciones que van MÁS ALLÁ de lo que cubre el sílabo y tienen valor real en el mercado laboral. ");
+        sb.append("Usa TU PROPIO CONOCIMIENTO para esto — NO uses web_search aquí. ");
+        sb.append("Piensa como un mentor senior: ¿qué le recomendarías aprender para destacar en el mundo laboral? ");
+        sb.append("Formato: frases cortas y accionables. Ejemplos: 'Docker y despliegue en contenedores', 'Certificación CCNA (200-301)', 'Git avanzado y flujos de trabajo en equipo', 'TypeScript en proyectos reales'.\n\n");
+        sb.append("TAREA 4 — recursos: Usa web_search para encontrar recursos reales y verificados:\n");
+        sb.append("  · 3 videos de YouTube (tutoriales explicativos del tema, en español si existen)\n");
+        sb.append("  · 1 libro gratuito online o PDF descargable\n");
+        sb.append("  · 1 documentación oficial o referencia técnica\n");
+        sb.append("  Verifica que las URLs existan. No inventes links.\n\n");
+        sb.append("Cuando termines las 4 tareas, responde ÚNICAMENTE con este JSON (sin texto antes ni después):\n");
+        sb.append("{\"resumen\":\"...\",\"temas\":[\"...\"],\"paraIrMasAlla\":[\"...\"],\"recursos\":[{\"titulo\":\"...\",\"tipo\":\"youtube|libro|documentacion\",\"url\":\"...\",\"descripcion\":\"...\"}]}");
 
         return sb.toString();
     }
