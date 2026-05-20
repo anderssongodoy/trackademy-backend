@@ -20,7 +20,7 @@ public class QuarkusMailerFeedbackReportAdapter implements FeedbackReportEmailPo
     public QuarkusMailerFeedbackReportAdapter(
             Mailer mailer,
             @ConfigProperty(name = "quarkus.mailer.from") String mailFrom,
-            @ConfigProperty(name = "app.feedback.email.destino", defaultValue = "contacto@trinitylabs.app") String emailDestino
+            @ConfigProperty(name = "app.feedback.email.destino") String emailDestino
     ) {
         this.mailer = mailer;
         this.mailFrom = mailFrom;
