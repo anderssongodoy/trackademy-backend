@@ -24,7 +24,7 @@ public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilt
     @ConfigProperty(name = "quarkus.http.cors", defaultValue = "true")
     boolean corsEnabled;
 
-    @ConfigProperty(name = "quarkus.http.cors.origins", defaultValue = "https://trackademy.trinitylabs.app")
+    @ConfigProperty(name = "quarkus.http.cors.origins", defaultValue = "http://localhost:4200")
     String origins;
 
     @ConfigProperty(name = "quarkus.http.cors.headers", defaultValue = "accept,authorization,content-type,x-requested-with")
